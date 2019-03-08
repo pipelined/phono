@@ -1,12 +1,23 @@
 <html>
-    <head>
+
+<head>
     <title></title>
-    </head>
-    <body>
-        <form method="post">
-            Username:<input type="text" name="username">
-            Password:<input type="password" name="password">
-            <input type="submit" value="Login">
-        </form>
-    </body>
+</head>
+
+<body>
+    <form enctype="multipart/form-data" method="post">
+
+        <p><input type="file" name="uploadfile" /></p>
+            
+        <fieldset id="formats">
+                {{range $key, $value := .Formats}}
+            <input type="radio" id="{{ $key }}" value="{{ $value }}" name="formats">
+            <label for="{{ $key }}">{{ $value }}</label>
+            {{end}}
+        </fieldset>
+        
+        <input type="submit" value="Convert">
+    </form>
+</body>
+
 </html>

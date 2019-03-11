@@ -7,11 +7,11 @@
 <body>
     <form enctype="multipart/form-data" method="post">
 
-        <p><input type="file" name="uploadfile" /></p>
+        <p><input type="file" name="convertfile" accept=".wav,.mp3"/></p>
             
-        <fieldset id="formats">
+        <fieldset id="format">
                 {{range $key, $value := .Formats}}
-            <input type="radio" id="{{ $key }}" value="{{ $value }}" name="formats">
+            <input type="radio" id="{{ $key }}" value="{{ $value }}" name="format">
             <label for="{{ $key }}">{{ $value }}</label>
             {{end}}
         </fieldset>

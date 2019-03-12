@@ -129,6 +129,7 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 				http.Error(w, fmt.Sprintf("Failed to close temp file: %v", err), http.StatusInternalServerError)
 				return
 			}
+			os.Remove(tmpFileName)
 			return
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)

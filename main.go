@@ -38,6 +38,7 @@ type ConvertForm struct {
 	Formats map[string]string
 }
 
+// convertHandler converts form files to the format provided y form.
 func convertHandler(indexTemplate *template.Template, maxSize int64, path string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -102,15 +103,10 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 				http.Error(w, fmt.Sprintf("Failed to build pipe: %v", err), http.StatusInternalServerError)
 				return
 			}
-			err = tmpFile.Close()
-			if err != nil {
-				http.Error(w, fmt.Sprintf("Failed to close temp file: %v", err), http.StatusInternalServerError)
-				return
-			}
 
-			tmpFile, err = os.Open(tmpFileName)
+			_, err = tmpFile.Seek(0, 0)
 			if err != nil {
-				http.Error(w, fmt.Sprintf("Failed to re-open temp file: %v", err), http.StatusInternalServerError)
+				http.Error(w, fmt.Sprintf("Failed to reset temp file: %v", err), http.StatusInternalServerError)
 				return
 			}
 			stat, err := tmpFile.Stat()

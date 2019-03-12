@@ -16,6 +16,7 @@ import (
 	"github.com/pipelined/pipe"
 	"github.com/pipelined/signal"
 	"github.com/pipelined/wav"
+	"github.com/rs/xid"
 )
 
 var (
@@ -76,8 +77,9 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 			// create sink for output format
 			var sink pipe.Sink
 			outFormat := r.FormValue("format")
-			tmpFileName := path + "/" + outFileName(handler.Filename, inFormat, outFormat)
+			tmpFileName := tmpFileName(path)
 			tmpFile, err := os.Create(tmpFileName)
+			fmt.Println(tmpFileName)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Error creating temp file: %v", err), http.StatusInternalServerError)
 			}
@@ -117,7 +119,7 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 			}
 			fileSize := strconv.FormatInt(stat.Size(), 10)
 			//Send the headers
-			w.Header().Set("Content-Disposition", "attachment; filename="+tmpFileName)
+			w.Header().Set("Content-Disposition", "attachment; filename="+outFileName(handler.Filename, inFormat, outFormat))
 			w.Header().Set("Content-Type", mime.TypeByExtension(outFormat))
 			w.Header().Set("Content-Length", fileSize)
 			io.Copy(w, tmpFile) // send file to a client
@@ -143,6 +145,12 @@ func main() {
 	}
 }
 
+// tmpFileName returns temporary file name. It uses xid library to generate names on the fly.
+func tmpFileName(path string) string {
+	return filepath.Join(path, xid.New().String())
+}
+
+// outFileName return output file name. It replaces input format extension with output.
 func outFileName(name, oldExt, newExt string) string {
 	return strings.Replace(strings.ToLower(name), oldExt, newExt, 1)
 }

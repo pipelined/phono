@@ -7,4 +7,5 @@ require (
 	github.com/pipelined/pipe v0.4.0
 	github.com/pipelined/signal v0.0.0-20190303105250-40bacde8022c
 	github.com/pipelined/wav v0.0.0-20190310183337-020d3be76c40
+	github.com/rs/xid v1.2.1
 )

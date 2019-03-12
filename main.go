@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/pipelined/mp3"
 	"github.com/pipelined/pipe"
@@ -75,16 +76,16 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 			// create sink for output format
 			var sink pipe.Sink
 			outFormat := r.FormValue("format")
-			tmpFileName := path + "/" + handler.Filename
-			var tmpFile *os.File
+			tmpFileName := path + "/" + outFileName(handler.Filename, inFormat, outFormat)
+			tmpFile, err := os.Create(tmpFileName)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Error creating temp file: %v", err), http.StatusInternalServerError)
+			}
 			switch outFormat {
 			case ".wav":
-				tmpFile, err = os.Create(tmpFileName)
-				if err != nil {
-					http.Error(w, fmt.Sprintf("Error creating temp file: %v", err), http.StatusInternalServerError)
-				}
 				sink = wav.NewSink(tmpFile, signal.BitDepth24)
 			case ".mp3":
+				sink = mp3.NewSink(tmpFile, 192, 10)
 			default:
 				http.Error(w, fmt.Sprintf("Invalid output file format: %v", outFormat), http.StatusBadRequest)
 				return
@@ -140,4 +141,8 @@ func main() {
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
+}
+
+func outFileName(name, oldExt, newExt string) string {
+	return strings.Replace(strings.ToLower(name), oldExt, newExt, 1)
 }

@@ -22,10 +22,11 @@ import (
 var (
 	indexTemplate = template.Must(template.ParseFiles("web/index.tmpl"))
 
-	convertForm = &ConvertForm{
-		Formats: map[string]string{
-			"wav": ".wav",
-			"mp3": ".mp3",
+	convertFormData = &ConvertForm{
+		Accept: fmt.Sprintf("%s, %s", WavFormat, Mp3Format),
+		OutFormats: []Format{
+			WavFormat,
+			Mp3Format,
 		},
 	}
 )
@@ -33,19 +34,28 @@ var (
 const (
 	maxInputSize = 2 * 1024 * 1024
 	tmpPath      = "tmp"
+
+	// WavFormat represents .wav files
+	WavFormat = Format(".wav")
+	// Mp3Format represents .mp3 files
+	Mp3Format = Format(".mp3")
 )
 
 // ConvertForm provides a form for a user to define conversion parameters.
 type ConvertForm struct {
-	Formats map[string]string
+	Accept     string
+	OutFormats []Format
 }
+
+// Format is a file extension.
+type Format string
 
 // convertHandler converts form files to the format provided y form.
 func convertHandler(indexTemplate *template.Template, maxSize int64, path string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
-			indexTemplate.Execute(w, convertForm)
+			indexTemplate.Execute(w, convertFormData)
 		case http.MethodPost:
 			// check max size
 			r.Body = http.MaxBytesReader(w, r.Body, maxSize)
@@ -64,10 +74,10 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 			// create pump for input format
 			var pump pipe.Pump
 			inFormat := filepath.Ext(handler.Filename)
-			switch inFormat {
-			case ".wav":
+			switch Format(inFormat) {
+			case WavFormat:
 				pump = wav.NewPump(file)
-			case ".mp3":
+			case Mp3Format:
 				pump = mp3.NewPump(file)
 			default:
 				http.Error(w, fmt.Sprintf("Invalid input file format: %v", inFormat), http.StatusBadRequest)
@@ -79,10 +89,12 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 			outFormat := r.FormValue("format")
 			tmpFileName := tmpFileName(path)
 			tmpFile, err := os.Create(tmpFileName)
-			fmt.Println(tmpFileName)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Error creating temp file: %v", err), http.StatusInternalServerError)
+				return
 			}
+			defer cleanUp(tmpFile)
+
 			switch outFormat {
 			case ".wav":
 				sink = wav.NewSink(tmpFile, signal.BitDepth24)
@@ -103,7 +115,7 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 			// run conversion
 			err = pipe.Wait(convert.Run())
 			if err != nil {
-				http.Error(w, fmt.Sprintf("Failed to build pipe: %v", err), http.StatusInternalServerError)
+				http.Error(w, fmt.Sprintf("Failed to execute pipe: %v", err), http.StatusInternalServerError)
 				return
 			}
 
@@ -123,12 +135,6 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 			w.Header().Set("Content-Type", mime.TypeByExtension(outFormat))
 			w.Header().Set("Content-Length", fileSize)
 			io.Copy(w, tmpFile) // send file to a client
-			err = tmpFile.Close()
-			if err != nil {
-				http.Error(w, fmt.Sprintf("Failed to close temp file: %v", err), http.StatusInternalServerError)
-				return
-			}
-			os.Remove(tmpFileName)
 			return
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -153,4 +159,16 @@ func tmpFileName(path string) string {
 // outFileName return output file name. It replaces input format extension with output.
 func outFileName(name, oldExt, newExt string) string {
 	return strings.Replace(strings.ToLower(name), oldExt, newExt, 1)
+}
+
+// cleanUp removes temporary file and handles all errors on the way.
+func cleanUp(f *os.File) {
+	err := f.Close()
+	if err != nil {
+		log.Printf("Failed to close temp file")
+	}
+	err = os.Remove(f.Name())
+	if err != nil {
+		log.Printf("Failed to delete temp file")
+	}
 }

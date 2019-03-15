@@ -19,14 +19,37 @@ import (
 	"github.com/rs/xid"
 )
 
+// convertForm provides a form for a user to define conversion parameters.
+type convertForm struct {
+	Accept     string
+	OutFormats []format
+	WavOptions wavOptions
+}
+
+// format is a file extension.
+type format string
+
+// WavOptions is a struct of wav options that are available for conversion.
+type wavOptions struct {
+	BitDepths map[signal.BitDepth]string
+}
+
 var (
 	indexTemplate = template.Must(template.ParseFiles("web/index.tmpl"))
 
-	convertFormData = &ConvertForm{
+	convertFormData = &convertForm{
 		Accept: fmt.Sprintf("%s, %s", WavFormat, Mp3Format),
-		OutFormats: []Format{
+		OutFormats: []format{
 			WavFormat,
 			Mp3Format,
+		},
+		WavOptions: wavOptions{
+			BitDepths: map[signal.BitDepth]string{
+				signal.BitDepth8:  "8 bit",
+				signal.BitDepth16: "16 bits",
+				signal.BitDepth24: "24 bits",
+				signal.BitDepth32: "32 bits",
+			},
 		},
 	}
 )
@@ -36,19 +59,10 @@ const (
 	tmpPath      = "tmp"
 
 	// WavFormat represents .wav files
-	WavFormat = Format(".wav")
+	WavFormat = format(".wav")
 	// Mp3Format represents .mp3 files
-	Mp3Format = Format(".mp3")
+	Mp3Format = format(".mp3")
 )
-
-// ConvertForm provides a form for a user to define conversion parameters.
-type ConvertForm struct {
-	Accept     string
-	OutFormats []Format
-}
-
-// Format is a file extension.
-type Format string
 
 type source interface {
 	io.Reader
@@ -69,6 +83,10 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 				http.Error(w, "File too big", http.StatusBadRequest)
 				return
 			}
+
+			bitDepth, _ := strconv.Atoi(r.FormValue("bit-depth"))
+			fmt.Printf("Bit depth: %v\n", bitDepth)
+
 			// obtain file handler
 			file, handler, err := r.FormFile("convertfile")
 			if err != nil {
@@ -76,10 +94,10 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 				return
 			}
 			defer file.Close()
-			inFormat := Format(filepath.Ext(handler.Filename))
+			inFormat := format(filepath.Ext(handler.Filename))
 
 			// create temp file
-			outFormat := Format(r.FormValue("format"))
+			outFormat := format(r.FormValue("format"))
 			tmpFileName := tmpFileName(path)
 			tmpFile, err := os.Create(tmpFileName)
 			if err != nil {
@@ -135,7 +153,7 @@ func tmpFileName(path string) string {
 }
 
 // outFileName return output file name. It replaces input format extension with output.
-func outFileName(name string, oldExt, newExt Format) string {
+func outFileName(name string, oldExt, newExt format) string {
 	return strings.Replace(strings.ToLower(name), string(oldExt), string(newExt), 1)
 }
 
@@ -151,7 +169,7 @@ func cleanUp(f *os.File) {
 	}
 }
 
-func convert(s source, destination *os.File, inFormat, outFormat Format) error {
+func convert(s source, destination *os.File, inFormat, outFormat format) error {
 	// create pump for input format
 	var pump pipe.Pump
 	switch inFormat {

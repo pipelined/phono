@@ -10,9 +10,16 @@
         <p><input type="file" name="convertfile" accept="{{.Accept}}"/></p>
             
         <fieldset id="format">
-                {{range $key, $value := .OutFormats}}
-            <input type="radio" id="{{ $value }}" value="{{ $value }}" name="format">
-            <label for="{{ $value }}">{{ $value }}</label>
+            {{range $key, $value := .OutFormats}}
+                <input type="radio" id="{{ $value }}" value="{{ $value }}" name="format">
+                <label for="{{ $value }}">{{ $value }}</label>
+            {{end}}
+        </fieldset>
+
+        <fieldset id="bit-depth">
+            {{range $key, $value := .WavOptions.BitDepths}}
+                <input type="radio" id="{{ $key }}" value="{{ $key }}" name="bit-depth">
+                <label for="{{ $key }}">{{ $value }}</label>
             {{end}}
         </fieldset>
         

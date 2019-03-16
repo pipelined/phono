@@ -39,16 +39,19 @@ type wavConfig struct {
 	signal.BitDepth
 }
 
+type mp3Config struct{}
+
 type config interface {
 	Sink(destination) pipe.Sink
 }
 
+// TODO: resolve config dependency to http.Package
 func (f format) config(r *http.Request) (config, error) {
 	switch f {
 	case WavFormat:
 		return parseWav(r)
 	case Mp3Format:
-		panic("Not implemented")
+		return mp3Config{}, nil
 	default:
 		return nil, fmt.Errorf("Unsupported format: %v", f)
 	}
@@ -87,6 +90,10 @@ func parseWav(r *http.Request) (wavConfig, error) {
 
 func (c wavConfig) Sink(d destination) pipe.Sink {
 	return wav.NewSink(d, c.BitDepth)
+}
+
+func (c mp3Config) Sink(d destination) pipe.Sink {
+	return mp3.NewSink(d, 192, 0)
 }
 
 var (

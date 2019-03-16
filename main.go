@@ -34,12 +34,13 @@ type wavOptions struct {
 	BitDepths map[signal.BitDepth]string
 }
 
+// wavConfig is the configuration needed for wav output.
 type wavConfig struct {
 	signal.BitDepth
 }
 
 type config interface {
-	Sink(*os.File) pipe.Sink
+	Sink(destination) pipe.Sink
 }
 
 func (f format) config(r *http.Request) (config, error) {
@@ -48,6 +49,17 @@ func (f format) config(r *http.Request) (config, error) {
 		return parseWav(r)
 	case Mp3Format:
 		panic("Not implemented")
+	default:
+		return nil, fmt.Errorf("Unsupported format: %v", f)
+	}
+}
+
+func (f format) pump(s source) (pipe.Pump, error) {
+	switch f {
+	case WavFormat:
+		return wav.NewPump(s), nil
+	case Mp3Format:
+		return mp3.NewPump(s), nil
 	default:
 		return nil, fmt.Errorf("Unsupported format: %v", f)
 	}
@@ -73,8 +85,8 @@ func parseWav(r *http.Request) (wavConfig, error) {
 	return wavConfig{BitDepth: signal.BitDepth(bitDepth)}, nil
 }
 
-func (c wavConfig) Sink(f *os.File) pipe.Sink {
-	return wav.NewSink(f, c.BitDepth)
+func (c wavConfig) Sink(d destination) pipe.Sink {
+	return wav.NewSink(d, c.BitDepth)
 }
 
 var (
@@ -113,6 +125,11 @@ type source interface {
 	io.Reader
 	io.Seeker
 	io.Closer
+}
+
+type destination interface {
+	io.Writer
+	io.Seeker
 }
 
 // convertHandler converts form files to the format provided y form.
@@ -157,7 +174,7 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 			// convert file using temp file
 			err = convert(formFile, tmpFile, inFormat, outConfig)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 
@@ -217,20 +234,14 @@ func cleanUp(f *os.File) {
 	}
 }
 
-func convert(s source, destination *os.File, inFormat format, outConfig config) error {
+func convert(s source, d destination, sourceFormat format, destinationConfig config) error {
 	// create pump for input format
-	var pump pipe.Pump
-	switch inFormat {
-	case WavFormat:
-		pump = wav.NewPump(s)
-	case Mp3Format:
-		pump = mp3.NewPump(s)
-	default:
-		return fmt.Errorf("Invalid input file format: %v", inFormat)
+	pump, err := sourceFormat.pump(s)
+	if err != nil {
+		return fmt.Errorf("Unsupported input format: %s", sourceFormat)
 	}
-
 	// create sink for output format
-	sink := outConfig.Sink(destination)
+	sink := destinationConfig.Sink(d)
 
 	// build convert pipe
 	convert, err := pipe.New(1024, pipe.WithPump(pump), pipe.WithSinks(sink))

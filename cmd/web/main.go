@@ -78,7 +78,6 @@ var (
 
 const (
 	maxInputSize = 2 * 1024 * 1024
-	tmpPath      = "tmp"
 )
 
 // convertHandler converts form files to the format provided y form.
@@ -153,6 +152,14 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 }
 
 func main() {
+	tmpPath := "tmp"
+	if _, err := os.Stat(tmpPath); os.IsNotExist(err) {
+		err = os.Mkdir(tmpPath, os.ModePerm)
+		if err != nil {
+			log.Fatal(fmt.Sprintf("Failed to create temp folder: %v", err))
+		}
+	}
+
 	// setting router rule
 	http.Handle("/", convertHandler(indexTemplate, maxInputSize, tmpPath))
 	err := http.ListenAndServe(":8080", nil) // setting listening port

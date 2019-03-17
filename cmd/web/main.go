@@ -12,141 +12,74 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pipelined/mp3"
-	"github.com/pipelined/pipe"
+	"github.com/pipelined/convert"
 	"github.com/pipelined/signal"
-	"github.com/pipelined/wav"
 	"github.com/rs/xid"
 )
 
 // convertForm provides a form for a user to define conversion parameters.
 type convertForm struct {
 	Accept     string
-	OutFormats []format
+	OutFormats []convert.Format
 	WavOptions wavOptions
 }
-
-// format is a file extension.
-type format string
 
 // WavOptions is a struct of wav options that are available for conversion.
 type wavOptions struct {
 	BitDepths map[signal.BitDepth]string
 }
 
-// wavConfig is the configuration needed for wav output.
-type wavConfig struct {
-	signal.BitDepth
-}
-
-type mp3Config struct{}
-
-type config interface {
-	Format() format
-	Sink(destination) pipe.Sink
-}
-
-func parseConfig(r *http.Request) (config, error) {
-	f := format(r.FormValue("format"))
+func parseConfig(r *http.Request) (convert.OutputConfig, error) {
+	f := convert.Format(r.FormValue("format"))
 	switch f {
-	case WavFormat:
+	case convert.WavFormat:
 		return parseWavConfig(r)
-	case Mp3Format:
-		return mp3Config{}, nil
+	case convert.Mp3Format:
+		return convert.Mp3Config{}, nil
 	default:
 		return nil, fmt.Errorf("Unsupported format: %v", f)
 	}
 }
 
-func (f format) pump(s source) (pipe.Pump, error) {
-	switch f {
-	case WavFormat:
-		return wav.NewPump(s), nil
-	case Mp3Format:
-		return mp3.NewPump(s), nil
-	default:
-		return nil, fmt.Errorf("Unsupported format: %v", f)
-	}
-}
-
-func parseWavConfig(r *http.Request) (wavConfig, error) {
+func parseWavConfig(r *http.Request) (convert.WavConfig, error) {
 	// check if bit depth is provided
 	bitDepthString := r.FormValue("bit-depth")
 	if bitDepthString == "" {
-		return wavConfig{}, fmt.Errorf("Please provide bit depth")
+		return convert.WavConfig{}, fmt.Errorf("Please provide bit depth")
 	}
 
 	// check if bit depth could be parsed
 	bitDepth, err := strconv.Atoi(bitDepthString)
 	if err != nil {
-		return wavConfig{}, fmt.Errorf("Failed parsing bit depth value %s: %v", bitDepthString, err)
+		return convert.WavConfig{}, fmt.Errorf("Failed parsing bit depth value %s: %v", bitDepthString, err)
 	}
 
 	// check if bit depth is supported
-	if _, ok := wavBitDepths[signal.BitDepth(bitDepth)]; !ok {
-		return wavConfig{}, fmt.Errorf("Bit depth %v is not supported", bitDepthString)
+	if _, ok := convert.WavBitDepths[signal.BitDepth(bitDepth)]; !ok {
+		return convert.WavConfig{}, fmt.Errorf("Bit depth %v is not supported", bitDepthString)
 	}
-	return wavConfig{BitDepth: signal.BitDepth(bitDepth)}, nil
-}
-
-func (c wavConfig) Sink(d destination) pipe.Sink {
-	return wav.NewSink(d, c.BitDepth)
-}
-
-func (c wavConfig) Format() format {
-	return WavFormat
-}
-
-func (c mp3Config) Sink(d destination) pipe.Sink {
-	return mp3.NewSink(d, 192, 0)
-}
-
-func (c mp3Config) Format() format {
-	return Mp3Format
+	return convert.WavConfig{BitDepth: signal.BitDepth(bitDepth)}, nil
 }
 
 var (
 	indexTemplate = template.Must(template.ParseFiles("web/index.tmpl"))
 
 	convertFormData = &convertForm{
-		Accept: fmt.Sprintf("%s, %s", WavFormat, Mp3Format),
-		OutFormats: []format{
-			WavFormat,
-			Mp3Format,
+		Accept: fmt.Sprintf("%s, %s", convert.WavFormat, convert.Mp3Format),
+		OutFormats: []convert.Format{
+			convert.WavFormat,
+			convert.Mp3Format,
 		},
 		WavOptions: wavOptions{
-			BitDepths: wavBitDepths,
+			BitDepths: convert.WavBitDepths,
 		},
-	}
-
-	wavBitDepths = map[signal.BitDepth]string{
-		signal.BitDepth8:  "8 bit",
-		signal.BitDepth16: "16 bits",
-		signal.BitDepth24: "24 bits",
-		signal.BitDepth32: "32 bits",
 	}
 )
 
 const (
 	maxInputSize = 2 * 1024 * 1024
 	tmpPath      = "tmp"
-
-	// WavFormat represents .wav files
-	WavFormat = format(".wav")
-	// Mp3Format represents .mp3 files
-	Mp3Format = format(".mp3")
 )
-
-type source interface {
-	io.Reader
-	io.Seeker
-	io.Closer
-}
-
-type destination interface {
-	io.Writer
-	io.Seeker
-}
 
 // convertHandler converts form files to the format provided y form.
 func convertHandler(indexTemplate *template.Template, maxSize int64, path string) http.Handler {
@@ -169,7 +102,7 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 				return
 			}
 			defer formFile.Close()
-			inFormat := format(filepath.Ext(handler.Filename))
+			inFormat := convert.Format(filepath.Ext(handler.Filename))
 
 			// parse output config
 			outConfig, err := parseConfig(r)
@@ -188,7 +121,7 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 			defer cleanUp(tmpFile)
 
 			// convert file using temp file
-			err = convert(formFile, tmpFile, inFormat, outConfig)
+			err = convert.Convert(formFile, tmpFile, inFormat, outConfig)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
@@ -234,7 +167,7 @@ func tmpFileName(path string) string {
 }
 
 // outFileName return output file name. It replaces input format extension with output.
-func outFileName(name string, oldExt, newExt format) string {
+func outFileName(name string, oldExt, newExt convert.Format) string {
 	return strings.Replace(strings.ToLower(name), string(oldExt), string(newExt), 1)
 }
 
@@ -248,27 +181,4 @@ func cleanUp(f *os.File) {
 	if err != nil {
 		log.Printf("Failed to delete temp file")
 	}
-}
-
-func convert(s source, d destination, sourceFormat format, destinationConfig config) error {
-	// create pump for input format
-	pump, err := sourceFormat.pump(s)
-	if err != nil {
-		return fmt.Errorf("Unsupported input format: %s", sourceFormat)
-	}
-	// create sink for output format
-	sink := destinationConfig.Sink(d)
-
-	// build convert pipe
-	convert, err := pipe.New(1024, pipe.WithPump(pump), pipe.WithSinks(sink))
-	if err != nil {
-		return fmt.Errorf("Failed to build pipe: %v", err)
-	}
-
-	// run conversion
-	err = pipe.Wait(convert.Run())
-	if err != nil {
-		return fmt.Errorf("Failed to execute pipe: %v", err)
-	}
-	return nil
 }

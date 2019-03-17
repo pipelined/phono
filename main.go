@@ -42,14 +42,15 @@ type wavConfig struct {
 type mp3Config struct{}
 
 type config interface {
+	Format() format
 	Sink(destination) pipe.Sink
 }
 
-// TODO: resolve config dependency to http.Package
-func (f format) config(r *http.Request) (config, error) {
+func parseConfig(r *http.Request) (config, error) {
+	f := format(r.FormValue("format"))
 	switch f {
 	case WavFormat:
-		return parseWav(r)
+		return parseWavConfig(r)
 	case Mp3Format:
 		return mp3Config{}, nil
 	default:
@@ -68,7 +69,7 @@ func (f format) pump(s source) (pipe.Pump, error) {
 	}
 }
 
-func parseWav(r *http.Request) (wavConfig, error) {
+func parseWavConfig(r *http.Request) (wavConfig, error) {
 	// check if bit depth is provided
 	bitDepthString := r.FormValue("bit-depth")
 	if bitDepthString == "" {
@@ -92,8 +93,16 @@ func (c wavConfig) Sink(d destination) pipe.Sink {
 	return wav.NewSink(d, c.BitDepth)
 }
 
+func (c wavConfig) Format() format {
+	return WavFormat
+}
+
 func (c mp3Config) Sink(d destination) pipe.Sink {
 	return mp3.NewSink(d, 192, 0)
+}
+
+func (c mp3Config) Format() format {
+	return Mp3Format
 }
 
 var (
@@ -162,14 +171,14 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 			defer formFile.Close()
 			inFormat := format(filepath.Ext(handler.Filename))
 
-			// create temp file
-			outFormat := format(r.FormValue("format"))
-			outConfig, err := outFormat.config(r)
+			// parse output config
+			outConfig, err := parseConfig(r)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 
+			// create temp file
 			tmpFileName := tmpFileName(path)
 			tmpFile, err := os.Create(tmpFileName)
 			if err != nil {
@@ -199,8 +208,8 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 			}
 			fileSize := strconv.FormatInt(stat.Size(), 10)
 			//Send the headers
-			w.Header().Set("Content-Disposition", "attachment; filename="+outFileName(handler.Filename, inFormat, outFormat))
-			w.Header().Set("Content-Type", mime.TypeByExtension(string(outFormat)))
+			w.Header().Set("Content-Disposition", "attachment; filename="+outFileName(handler.Filename, inFormat, outConfig.Format()))
+			w.Header().Set("Content-Type", mime.TypeByExtension(string(outConfig.Format())))
 			w.Header().Set("Content-Length", fileSize)
 			io.Copy(w, tmpFile) // send file to a client
 			return

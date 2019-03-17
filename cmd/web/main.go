@@ -64,7 +64,7 @@ func parseWavConfig(r *http.Request) (convert.WavConfig, error) {
 var (
 	indexTemplate = template.Must(template.ParseFiles("web/index.tmpl"))
 
-	convertFormData = &convertForm{
+	convertFormData = convertForm{
 		Accept: fmt.Sprintf("%s, %s", convert.WavFormat, convert.Mp3Format),
 		OutFormats: []convert.Format{
 			convert.WavFormat,
@@ -86,7 +86,7 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
-			indexTemplate.Execute(w, convertFormData)
+			indexTemplate.Execute(w, &convertFormData)
 		case http.MethodPost:
 			// check max size
 			r.Body = http.MaxBytesReader(w, r.Body, maxSize)

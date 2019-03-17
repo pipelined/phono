@@ -46,7 +46,7 @@ type Format string
 // OutputConfig is an interface that defines how Sink is created out of configuration.
 type OutputConfig interface {
 	Format() Format
-	Sink(Destination) pipe.Sink
+	sink(Destination) pipe.Sink
 }
 
 // WavConfig is the configuration needed for wav output.
@@ -58,7 +58,7 @@ type WavConfig struct {
 type Mp3Config struct{}
 
 // Sink creates wav sink with provided config.
-func (c WavConfig) Sink(d Destination) pipe.Sink {
+func (c WavConfig) sink(d Destination) pipe.Sink {
 	return wav.NewSink(d, c.BitDepth)
 }
 
@@ -68,7 +68,7 @@ func (WavConfig) Format() Format {
 }
 
 // Sink creates mp3 sink with provided config.
-func (c Mp3Config) Sink(d Destination) pipe.Sink {
+func (c Mp3Config) sink(d Destination) pipe.Sink {
 	return mp3.NewSink(d, 192, 0)
 }
 
@@ -96,7 +96,7 @@ func Convert(s Source, d Destination, sourceFormat Format, destinationConfig Out
 		return fmt.Errorf("Unsupported input format: %s", sourceFormat)
 	}
 	// create sink for output format
-	sink := destinationConfig.Sink(d)
+	sink := destinationConfig.sink(d)
 
 	// build convert pipe
 	convert, err := pipe.New(1024, pipe.WithPump(pump), pipe.WithSinks(sink))

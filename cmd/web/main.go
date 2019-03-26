@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/pipelined/convert"
+	"github.com/pipelined/mp3"
 	"github.com/pipelined/signal"
 	"github.com/rs/xid"
 )
@@ -22,12 +23,42 @@ type convertForm struct {
 	Accept     string
 	OutFormats []convert.Format
 	WavOptions wavOptions
+	Mp3Options mp3Options
 }
 
 // WavOptions is a struct of wav options that are available for conversion.
 type wavOptions struct {
 	BitDepths map[signal.BitDepth]string
 }
+
+type mp3Options struct {
+	BitRateModes  map[mp3.BitRateMode]string
+	ChannelModes  map[mp3.ChannelMode]string
+	DefineQuality bool
+	Qualities     map[mp3.Quality]string
+	VBRQualities  map[mp3.VBRQuality]string
+}
+
+var (
+	indexTemplate = template.Must(template.ParseFiles("web/index.tmpl"))
+
+	convertFormData = convertForm{
+		Accept: fmt.Sprintf("%s, %s", convert.WavFormat, convert.Mp3Format),
+		OutFormats: []convert.Format{
+			convert.WavFormat,
+			convert.Mp3Format,
+		},
+		WavOptions: wavOptions{
+			BitDepths: convert.Supported.WavBitDepths,
+		},
+		Mp3Options: mp3Options{
+			BitRateModes: convert.Supported.Mp3BitRateModes,
+			ChannelModes: convert.Supported.Mp3ChannelModes,
+			VBRQualities: convert.Supported.Mp3VBRQualities,
+			Qualities:    convert.Supported.Mp3Qualities,
+		},
+	}
+)
 
 func parseConfig(r *http.Request) (convert.OutputConfig, error) {
 	f := convert.Format(r.FormValue("format"))
@@ -43,7 +74,7 @@ func parseConfig(r *http.Request) (convert.OutputConfig, error) {
 
 func parseWavConfig(r *http.Request) (convert.WavConfig, error) {
 	// check if bit depth is provided
-	bitDepthString := r.FormValue("bit-depth")
+	bitDepthString := r.FormValue("wav-bit-depth")
 	if bitDepthString == "" {
 		return convert.WavConfig{}, fmt.Errorf("Please provide bit depth")
 	}
@@ -55,26 +86,11 @@ func parseWavConfig(r *http.Request) (convert.WavConfig, error) {
 	}
 
 	// check if bit depth is supported
-	if _, ok := convert.WavBitDepths[signal.BitDepth(bitDepth)]; !ok {
+	if _, ok := convert.Supported.WavBitDepths[signal.BitDepth(bitDepth)]; !ok {
 		return convert.WavConfig{}, fmt.Errorf("Bit depth %v is not supported", bitDepthString)
 	}
 	return convert.WavConfig{BitDepth: signal.BitDepth(bitDepth)}, nil
 }
-
-var (
-	indexTemplate = template.Must(template.ParseFiles("web/index.tmpl"))
-
-	convertFormData = convertForm{
-		Accept: fmt.Sprintf("%s, %s", convert.WavFormat, convert.Mp3Format),
-		OutFormats: []convert.Format{
-			convert.WavFormat,
-			convert.Mp3Format,
-		},
-		WavOptions: wavOptions{
-			BitDepths: convert.WavBitDepths,
-		},
-	}
-)
 
 const (
 	maxInputSize = 2 * 1024 * 1024

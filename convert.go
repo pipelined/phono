@@ -18,12 +18,69 @@ const (
 )
 
 var (
-	// WavBitDepths is the list of supported bit depths for wav format.
-	WavBitDepths = map[signal.BitDepth]string{
+	// supported bit depths for wav format.
+	wavBitDepths = map[signal.BitDepth]string{
 		signal.BitDepth8:  "8 bit",
 		signal.BitDepth16: "16 bits",
 		signal.BitDepth24: "24 bits",
 		signal.BitDepth32: "32 bits",
+	}
+
+	// Supported bit rate modes for mp3 format.
+	mp3BitRateModes = map[mp3.BitRateMode]string{
+		mp3.CBR: mp3.CBR.String(),
+		mp3.VBR: mp3.VBR.String(),
+		mp3.ABR: mp3.ABR.String(),
+	}
+
+	// Supported channel modes for mp3 format.
+	mp3ChannelModes = map[mp3.ChannelMode]string{
+		mp3.JointStereo: "Joint Stereo",
+		mp3.Stereo:      "Stereo",
+		mp3.Mono:        "Mono",
+	}
+
+	// Supported VBR quality values for mp3 format.
+	mp3VBRQualities = map[mp3.VBRQuality]string{
+		mp3.VBR0: "0",
+		mp3.VBR1: "1",
+		mp3.VBR2: "2",
+		mp3.VBR3: "3",
+		mp3.VBR4: "4",
+		mp3.VBR5: "5",
+		mp3.VBR6: "6",
+		mp3.VBR7: "7",
+		mp3.VBR8: "8",
+		mp3.VBR9: "9",
+	}
+
+	// mp3Qualities is the list of supported VBR quality values for mp3 format.
+	mp3Qualities = map[mp3.Quality]string{
+		mp3.Q0: "0",
+		mp3.Q1: "1",
+		mp3.Q2: "2",
+		mp3.Q3: "3",
+		mp3.Q4: "4",
+		mp3.Q5: "5",
+		mp3.Q6: "6",
+		mp3.Q7: "7",
+		mp3.Q8: "8",
+		mp3.Q9: "9",
+	}
+
+	// Supported values for convert configuration.
+	Supported = struct {
+		WavBitDepths    map[signal.BitDepth]string
+		Mp3BitRateModes map[mp3.BitRateMode]string
+		Mp3ChannelModes map[mp3.ChannelMode]string
+		Mp3VBRQualities map[mp3.VBRQuality]string
+		Mp3Qualities    map[mp3.Quality]string
+	}{
+		WavBitDepths:    wavBitDepths,
+		Mp3BitRateModes: mp3BitRateModes,
+		Mp3ChannelModes: mp3ChannelModes,
+		Mp3Qualities:    mp3Qualities,
+		Mp3VBRQualities: mp3VBRQualities,
 	}
 )
 

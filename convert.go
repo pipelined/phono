@@ -55,11 +55,21 @@ type WavConfig struct {
 }
 
 // Mp3Config is the configuration needed for mp3 output.
-type Mp3Config struct{}
+type Mp3Config struct {
+	mp3.BitRateMode
+	mp3.ChannelMode
+	BitRate int
+	mp3.VBRQuality
+	UseQuality bool
+	mp3.Quality
+}
 
 // Sink creates wav sink with provided config.
 func (c WavConfig) sink(d Destination) pipe.Sink {
-	return wav.NewSink(d, c.BitDepth)
+	return &wav.Sink{
+		WriteSeeker: d,
+		BitDepth:    c.BitDepth,
+	}
 }
 
 // Format returns wav format extension.
@@ -69,7 +79,31 @@ func (WavConfig) Format() Format {
 
 // Sink creates mp3 sink with provided config.
 func (c Mp3Config) sink(d Destination) pipe.Sink {
-	return mp3.NewSink(d, 192, 0)
+	var s mp3.Sink
+	switch c.BitRateMode {
+	case mp3.CBR:
+		s = &mp3.CBRSink{
+			Writer:      d,
+			ChannelMode: c.ChannelMode,
+			BitRate:     c.BitRate,
+		}
+	case mp3.ABR:
+		s = &mp3.ABRSink{
+			Writer:      d,
+			ChannelMode: c.ChannelMode,
+			BitRate:     c.BitRate,
+		}
+	case mp3.VBR:
+		s = &mp3.VBRSink{
+			Writer:      d,
+			ChannelMode: c.ChannelMode,
+			VBRQuality:  c.VBRQuality,
+		}
+	}
+	if c.UseQuality {
+		s.SetQuality(c.Quality)
+	}
+	return s
 }
 
 // Format returns mp3 format extension.
@@ -80,9 +114,9 @@ func (Mp3Config) Format() Format {
 func (f Format) pump(s Source) (pipe.Pump, error) {
 	switch f {
 	case WavFormat:
-		return wav.NewPump(s), nil
+		return &wav.Pump{ReadSeeker: s}, nil
 	case Mp3Format:
-		return mp3.NewPump(s), nil
+		return &mp3.Pump{Reader: s}, nil
 	default:
 		return nil, fmt.Errorf("Unsupported format: %v", f)
 	}

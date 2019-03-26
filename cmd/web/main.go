@@ -90,7 +90,7 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 			// check max size
 			r.Body = http.MaxBytesReader(w, r.Body, maxSize)
 			if err := r.ParseMultipartForm(maxSize); err != nil {
-				http.Error(w, "File too big", http.StatusBadRequest)
+				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 

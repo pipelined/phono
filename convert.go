@@ -103,7 +103,7 @@ type Format string
 // OutputConfig is an interface that defines how Sink is created out of configuration.
 type OutputConfig interface {
 	Format() Format
-	sink(Destination) pipe.Sink
+	sink(Destination) (pipe.Sink, error)
 }
 
 // WavConfig is the configuration needed for wav output.
@@ -122,11 +122,17 @@ type Mp3Config struct {
 }
 
 // Sink creates wav sink with provided config.
-func (c WavConfig) sink(d Destination) pipe.Sink {
+// Returns error if provided configuration is not supported.
+func (c WavConfig) sink(d Destination) (pipe.Sink, error) {
+	// check if bit depth is supported
+	if _, ok := Supported.WavBitDepths[c.BitDepth]; !ok {
+		return nil, fmt.Errorf("Bit depth %v is not supported", c.BitDepth)
+	}
+
 	return &wav.Sink{
 		WriteSeeker: d,
 		BitDepth:    c.BitDepth,
-	}
+	}, nil
 }
 
 // Format returns wav format extension.
@@ -135,7 +141,11 @@ func (WavConfig) Format() Format {
 }
 
 // Sink creates mp3 sink with provided config.
-func (c Mp3Config) sink(d Destination) pipe.Sink {
+func (c Mp3Config) sink(d Destination) (pipe.Sink, error) {
+	// check if bit rate mode is supported
+	if _, ok := Supported.Mp3BitRateModes[c.BitRateMode]; !ok {
+		return nil, fmt.Errorf("Bit rate mode %v is not supported", c.BitRateMode)
+	}
 	var s mp3.Sink
 	switch c.BitRateMode {
 	case mp3.CBR:
@@ -160,7 +170,7 @@ func (c Mp3Config) sink(d Destination) pipe.Sink {
 	if c.UseQuality {
 		s.SetQuality(c.Quality)
 	}
-	return s
+	return s, nil
 }
 
 // Format returns mp3 format extension.
@@ -187,7 +197,10 @@ func Convert(s Source, d Destination, sourceFormat Format, destinationConfig Out
 		return fmt.Errorf("Unsupported input format: %s", sourceFormat)
 	}
 	// create sink for output format
-	sink := destinationConfig.sink(d)
+	sink, err := destinationConfig.sink(d)
+	if err != nil {
+		return fmt.Errorf("Provided configuration is not supported")
+	}
 
 	// build convert pipe
 	convert, err := pipe.New(1024, pipe.WithPump(pump), pipe.WithSinks(sink))

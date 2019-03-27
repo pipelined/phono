@@ -73,23 +73,55 @@ func parseConfig(r *http.Request) (convert.OutputConfig, error) {
 }
 
 func parseWavConfig(r *http.Request) (convert.WavConfig, error) {
-	// check if bit depth is provided
-	bitDepthString := r.FormValue("wav-bit-depth")
-	if bitDepthString == "" {
-		return convert.WavConfig{}, fmt.Errorf("Please provide bit depth")
-	}
-
-	// check if bit depth could be parsed
-	bitDepth, err := strconv.Atoi(bitDepthString)
+	// try to get bit depth
+	bitDepth, err := parseIntValue(r, "wav-bit-depth", "bit depth")
 	if err != nil {
-		return convert.WavConfig{}, fmt.Errorf("Failed parsing bit depth value %s: %v", bitDepthString, err)
+		return convert.WavConfig{}, err
 	}
 
-	// check if bit depth is supported
-	if _, ok := convert.Supported.WavBitDepths[signal.BitDepth(bitDepth)]; !ok {
-		return convert.WavConfig{}, fmt.Errorf("Bit depth %v is not supported", bitDepthString)
-	}
 	return convert.WavConfig{BitDepth: signal.BitDepth(bitDepth)}, nil
+}
+
+func parseMp3Config(r *http.Request) (convert.Mp3Config, error) {
+	// try to get bit rate mode
+	bitRateMode, err := parseIntValue(r, "mp3-bit-rate-mode", "bit rate mode")
+	if err != nil {
+		return convert.Mp3Config{}, err
+	}
+
+	// try to get channel mode
+	channelMode, err := parseIntValue(r, "mp3-channel-mode", "channel mode")
+	if err != nil {
+		return convert.Mp3Config{}, err
+	}
+
+	switch mp3.BitRateMode(bitRateMode) {
+	case mp3.VBR:
+	case mp3.ABR:
+	case mp3.CBR:
+	default:
+		return convert.Mp3Config{}, fmt.Errorf("Bit rate mode %v is not supported", bitRateMode)
+	}
+
+	return convert.Mp3Config{
+		BitRateMode: mp3.BitRateMode(bitRateMode),
+		ChannelMode: mp3.ChannelMode(channelMode),
+	}, nil
+}
+
+// parseIntValue parses value of key provided in the html form.
+// Returns error if value is not provided or cannot be parsed as int.
+func parseIntValue(r *http.Request, key, name string) (int, error) {
+	str := r.FormValue(key)
+	if str == "" {
+		return 0, fmt.Errorf("Please provide %s", name)
+	}
+
+	val, err := strconv.Atoi(str)
+	if err != nil {
+		return 0, fmt.Errorf("Failed parsing %s %s: %v", name, str, err)
+	}
+	return val, nil
 }
 
 const (

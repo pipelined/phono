@@ -37,9 +37,15 @@
                 <label for="{{ $key }}">{{ $value }}</label>
             {{end}}
         </fieldset>
+        <fieldset id="mp3-bit-rate">
+            {{range $key, $value := .Mp3Options.BitRates}}
+                <input type="radio" id="{{ $key }}" value="{{ $key }}" name="mp3-bit-rate">
+                <label for="{{ $key }}">{{ $value }}</label>
+            {{end}}
+        </fieldset>
         <fieldset id="mp3-vbr-quality">
             {{range $key, $value := .Mp3Options.VBRQualities}}
-                <input type="radio" id="{{ $key }}" value="{{ $key }}" name="mp3-channel-mode">
+                <input type="radio" id="{{ $key }}" value="{{ $key }}" name="mp3-vbr-quality">
                 <label for="{{ $key }}">{{ $value }}</label>
             {{end}}
         </fieldset>

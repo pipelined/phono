@@ -37,6 +37,7 @@ type mp3Options struct {
 	DefineQuality bool
 	Qualities     map[mp3.Quality]string
 	VBRQualities  map[mp3.VBRQuality]string
+	BitRates      []int
 }
 
 var (
@@ -56,6 +57,26 @@ var (
 			ChannelModes: convert.Supported.Mp3ChannelModes,
 			VBRQualities: convert.Supported.Mp3VBRQualities,
 			Qualities:    convert.Supported.Mp3Qualities,
+			BitRates: []int{
+				8,
+				16,
+				24,
+				32,
+				40,
+				48,
+				56,
+				64,
+				80,
+				96,
+				112,
+				128,
+				144,
+				160,
+				192,
+				224,
+				256,
+				320,
+			},
 		},
 	}
 )
@@ -66,7 +87,7 @@ func parseConfig(r *http.Request) (convert.OutputConfig, error) {
 	case convert.WavFormat:
 		return parseWavConfig(r)
 	case convert.Mp3Format:
-		return convert.Mp3Config{}, nil
+		return parseMp3Config(r)
 	default:
 		return nil, fmt.Errorf("Unsupported format: %v", f)
 	}
@@ -95,17 +116,28 @@ func parseMp3Config(r *http.Request) (convert.Mp3Config, error) {
 		return convert.Mp3Config{}, err
 	}
 
-	switch mp3.BitRateMode(bitRateMode) {
-	case mp3.VBR:
-	case mp3.ABR:
-	case mp3.CBR:
-	default:
-		return convert.Mp3Config{}, fmt.Errorf("Bit rate mode %v is not supported", bitRateMode)
+	if mp3.BitRateMode(bitRateMode) == mp3.VBR {
+		// try to get vbr quality
+		vbrQuality, err := parseIntValue(r, "mp3-vbr-quality", "vbr quality")
+		if err != nil {
+			return convert.Mp3Config{}, err
+		}
+		return convert.Mp3Config{
+			BitRateMode: mp3.VBR,
+			ChannelMode: mp3.ChannelMode(channelMode),
+			VBRQuality:  mp3.VBRQuality(vbrQuality),
+		}, nil
 	}
 
+	// try to get bitrate
+	bitRate, err := parseIntValue(r, "mp3-bit-rate", "bit rate")
+	if err != nil {
+		return convert.Mp3Config{}, err
+	}
 	return convert.Mp3Config{
 		BitRateMode: mp3.BitRateMode(bitRateMode),
 		ChannelMode: mp3.ChannelMode(channelMode),
+		BitRate:     bitRate,
 	}, nil
 }
 
@@ -133,6 +165,7 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
+			fmt.Printf("%v %d", mp3.VBR, mp3.VBR)
 			indexTemplate.Execute(w, &convertFormData)
 		case http.MethodPost:
 			// check max size
@@ -157,6 +190,8 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
+
+			fmt.Printf("Config: %+v\n", outConfig)
 
 			// create temp file
 			tmpFileName := tmpFileName(path)

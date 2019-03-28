@@ -165,7 +165,6 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
-			fmt.Printf("%v %d", mp3.VBR, mp3.VBR)
 			indexTemplate.Execute(w, &convertFormData)
 		case http.MethodPost:
 			// check max size
@@ -190,8 +189,6 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-
-			fmt.Printf("Config: %+v\n", outConfig)
 
 			// create temp file
 			tmpFileName := tmpFileName(path)

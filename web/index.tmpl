@@ -1,30 +1,33 @@
 <html>
 
 <head>
-    <title></title>
+    <link rel="stylesheet" href="static/style.css" type="text/css">
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+    <script src="static/script.js"></script> 
 </head>
 
 <body>
+    <p id="demo"></p>
     <form enctype="multipart/form-data" method="post">
 
-        <p><input type="file" name="convertfile" accept="{{.Accept}}"/></p>
+    <p><input type="file" name="convertfile" accept="{{.Accept}}"/></p>
             
-        <fieldset id="format">
-            {{range $key, $value := .OutFormats}}
-                <input type="radio" id="{{ $value }}" value="{{ $value }}" name="format">
-                <label for="{{ $value }}">{{ $value }}</label>
-            {{end}}
-        </fieldset>
+    {{range $key, $value := .OutFormats}}
+        <input type="radio" id="{{ $key }}" value="{{ $value }}" name="format">
+        <label for="{{ $key }}">{{ $value }}</label>
+    {{end}}
 
-        <p>wav options</p>
+
+    <div id="wav-options" class="output-options" display="none">
         <fieldset id="wav-bit-depth">
             {{range $key, $value := .WavOptions.BitDepths}}
                 <input type="radio" id="{{ $key }}" value="{{ $key }}" name="wav-bit-depth">
                 <label for="{{ $key }}">{{ $value }}</label>
             {{end}}
         </fieldset>
+    </div>
 
-        <p>mp3 options</p>
+    <div id="mp3-options" class="output-options">
         <fieldset id="mp3-channel-mode">
             {{range $key, $value := .Mp3Options.ChannelModes}}
                 <input type="radio" id="{{ $key }}" value="{{ $key }}" name="mp3-channel-mode">
@@ -56,7 +59,7 @@
                 <label for="{{ $key }}">{{ $value }}</label>
             {{end}}
         </fieldset>
-        
+    </div>
         <input type="submit" value="convert">
     </form>
 </body>

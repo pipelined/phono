@@ -35,9 +35,9 @@ var (
 
 	// Supported channel modes for mp3 format.
 	mp3ChannelModes = map[mp3.ChannelMode]string{
-		mp3.JointStereo: "Joint Stereo",
-		mp3.Stereo:      "Stereo",
-		mp3.Mono:        "Mono",
+		mp3.JointStereo: "joint stereo",
+		mp3.Stereo:      "stereo",
+		mp3.Mono:        "mono",
 	}
 
 	// Supported VBR quality values for mp3 format.

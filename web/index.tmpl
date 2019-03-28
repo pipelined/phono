@@ -25,15 +25,15 @@
         </fieldset>
 
         <p>mp3 options</p>
-        <fieldset id="mp3-bit-rate-mode">
-            {{range $key, $value := .Mp3Options.BitRateModes}}
-                <input type="radio" id="{{ printf "%d" $key }}" value="{{ printf "%d" $key }}" name="mp3-bit-rate-mode">
-                <label for="{{ $key }}">{{ $value }}</label>
-            {{end}}
-        </fieldset>
         <fieldset id="mp3-channel-mode">
             {{range $key, $value := .Mp3Options.ChannelModes}}
                 <input type="radio" id="{{ $key }}" value="{{ $key }}" name="mp3-channel-mode">
+                <label for="{{ $key }}">{{ $value }}</label>
+            {{end}}
+        </fieldset>
+        <fieldset id="mp3-bit-rate-mode">
+            {{range $key, $value := .Mp3Options.BitRateModes}}
+                <input type="radio" id="{{ printf "%d" $key }}" value="{{ printf "%d" $key }}" name="mp3-bit-rate-mode">
                 <label for="{{ $key }}">{{ $value }}</label>
             {{end}}
         </fieldset>

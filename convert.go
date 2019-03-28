@@ -146,6 +146,31 @@ func (c Mp3Config) sink(d Destination) (pipe.Sink, error) {
 	if _, ok := Supported.Mp3BitRateModes[c.BitRateMode]; !ok {
 		return nil, fmt.Errorf("Bit rate mode %v is not supported", c.BitRateMode)
 	}
+
+	// check if channel mode is supported
+	if _, ok := Supported.Mp3ChannelModes[c.ChannelMode]; !ok {
+		return nil, fmt.Errorf("Channel mode %v is not supported", c.ChannelMode)
+	}
+
+	// check if quality is supported
+	if c.UseQuality {
+		if _, ok := Supported.Mp3Qualities[c.Quality]; !ok {
+			return nil, fmt.Errorf("Quality %v is not supported", c.Quality)
+		}
+	}
+
+	if c.BitRateMode == mp3.VBR {
+		// validate VBR quality
+		if _, ok := Supported.Mp3VBRQualities[c.VBRQuality]; !ok {
+			return nil, fmt.Errorf("VBR quality %v is not supported", c.VBRQuality)
+		}
+	} else {
+		// validate bit rate for ABR and CBR
+		if c.BitRate > mp3.MaxBitRate || c.BitRate < mp3.MinBitRate {
+			return nil, fmt.Errorf("Bit rate %v is not supported. Provide value between %d and %d", c.BitRate, mp3.MinBitRate, mp3.MaxBitRate)
+		}
+	}
+
 	var s mp3.Sink
 	switch c.BitRateMode {
 	case mp3.CBR:

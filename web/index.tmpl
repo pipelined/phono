@@ -19,12 +19,12 @@
 
 
     <div id="wav-options" class="output-options" display="none">
-        <fieldset id="wav-bit-depth">
+        bit depth
+        <select name="wav-bit-depth">
             {{range $key, $value := .WavOptions.BitDepths}}
-                <input type="radio" id="{{ $key }}" value="{{ $key }}" name="wav-bit-depth">
-                <label for="{{ $key }}">{{ $value }}</label>
+                <option value="{{ $key }}">{{ $value }}</option>
             {{end}}
-        </fieldset>
+        </select>
     </div>
 
     <div id="mp3-options" class="output-options">

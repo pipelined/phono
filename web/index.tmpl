@@ -13,7 +13,7 @@
     <p><input type="file" name="convertfile" accept="{{.Accept}}"/></p>
             
     {{range $key, $value := .OutFormats}}
-        <input type="radio" id="{{ $key }}" value="{{ $value }}" name="format">
+        <input type="radio" id="{{ $key }}" value="{{ $value }}" name="format" class="format">
         <label for="{{ $key }}">{{ $value }}</label>
     {{end}}
 

@@ -1,9 +1,14 @@
 $(document).ready(function() {
     document.getElementById("convert").reset();
+    $('#input-file').change(function(){
+        $('#output-formats').show();
+    })
+
     // select output format and show options
     $('.format').click(function(){
         $('.output-options').hide();
         $('#'+this.id+'-options').show();
+        $('#submit').show();
     })
 
     // select mp3 bit rate mode

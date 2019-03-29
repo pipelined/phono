@@ -1,3 +1,7 @@
+#output-formats{
+    display: none;
+}
+
 .output-options{
     display: none;
 }
@@ -11,7 +15,7 @@
 }
 
 #submit{
-    display: block;
+    display: none;
 }
 
 select{

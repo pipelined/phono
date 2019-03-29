@@ -10,13 +10,15 @@
     <p id="demo"></p>
     <form id="convert" enctype="multipart/form-data" method="post">
 
-    <input type="file" name="convertfile" accept="{{.Accept}}"/>
+    <input id="input-file" type="file" name="input-file" accept="{{.Accept}}"/>
     <br>
-            
-    {{range $key, $value := .OutFormats}}
-        <input type="radio" id="{{ $key }}" value="{{ $value }}" name="format" class="format">
-        <label for="{{ $key }}">{{ $value }}</label>
-    {{end}}
+    
+    <div id="output-formats">
+        {{range $key, $value := .OutFormats}}
+            <input type="radio" id="{{ $key }}" value="{{ $value }}" name="format" class="format">
+            <label for="{{ $key }}">{{ $value }}</label>
+        {{end}}
+    </div>
 
     <div id="wav-options" class="output-options" display="none">
         bit depth
@@ -72,7 +74,7 @@
                     <option value="{{ $key }}">{{ $value }}</option>
                 {{end}}
             </select>
-        </div>
+        </div>  
     </div>
     <input id="submit" type="submit" value="convert">
     </form>

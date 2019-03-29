@@ -181,7 +181,7 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 			}
 
 			// obtain file handler
-			formFile, handler, err := r.FormFile("convertfile")
+			formFile, handler, err := r.FormFile("input-file")
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Invalid file: %v", err), http.StatusBadRequest)
 				return

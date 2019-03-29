@@ -1,3 +1,7 @@
 .output-options{
     display: none;
 }
+
+select{
+    display: block;
+}

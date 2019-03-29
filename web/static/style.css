@@ -2,6 +2,18 @@
     display: none;
 }
 
+.mp3-bit-rate-mode-options{
+    display: none;
+}
+
+#mp3-quality{
+    display: none;
+}
+
+#submit{
+    display: block;
+}
+
 select{
     display: block;
 }

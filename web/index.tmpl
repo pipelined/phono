@@ -8,19 +8,20 @@
 
 <body>
     <p id="demo"></p>
-    <form enctype="multipart/form-data" method="post">
+    <form id="convert" enctype="multipart/form-data" method="post">
 
-    <p><input type="file" name="convertfile" accept="{{.Accept}}"/></p>
+    <input type="file" name="convertfile" accept="{{.Accept}}"/>
+    <br>
             
     {{range $key, $value := .OutFormats}}
         <input type="radio" id="{{ $key }}" value="{{ $value }}" name="format" class="format">
         <label for="{{ $key }}">{{ $value }}</label>
     {{end}}
 
-
     <div id="wav-options" class="output-options" display="none">
         bit depth
         <select name="wav-bit-depth">
+            <option hidden disabled selected value>select</option>
             {{range $key, $value := .WavOptions.BitDepths}}
                 <option value="{{ $key }}">{{ $value }}</option>
             {{end}}
@@ -28,45 +29,52 @@
     </div>
 
     <div id="mp3-options" class="output-options">
-
         channel mode
         <select name="mp3-channel-mode">
+            <option hidden disabled selected value>select</option>
             {{range $key, $value := .Mp3Options.ChannelModes}}
                 <option value="{{ $key }}">{{ $value }}</option>
             {{end}}
         </select>
 
         bit rate mode
-        <select name="mp3-bit-rate-mode">
+        <select id="mp3-bit-rate-mode" name="mp3-bit-rate-mode">
+            <option hidden disabled selected value>select</option>
             {{range $key, $value := .Mp3Options.BitRateModes}}
-                <option value="{{ printf "%d" $key }}">{{ $value }}</option>
+                <option id="{{ $value }}" value="{{ printf "%d" $key }}">{{ $value }}</option>
             {{end}}
         </select>
-        bit rate 
-        <select name="mp3-bit-rate">
-            {{range $key, $value := .Mp3Options.BitRates}}
-                <option value="{{ $value }}">{{ $value }}</option>
-            {{end}}
-        </select>
-
-        vbr quality
-        <select name="mp3-vbr-quality">
-            {{range $key, $value := .Mp3Options.VBRQualities}}
-                <option value="{{ $key }}">{{ $value }}</option>
-            {{end}}
-        </select>
-
         
-        <input type="checkbox" name="mp3-define-quality" value="true">define quality<br>
+        <div class="mp3-bit-rate-mode-options mp3-{{ .Mp3Options.ABR }}-options mp3-{{ .Mp3Options.CBR }}-options">
+            bit rate 
+            <select name="mp3-bit-rate">
+                {{range $key, $value := .Mp3Options.BitRates}}
+                    <option value="{{ $value }}">{{ $value }}</option>
+                {{end}}
+            </select>
+        </div> 
 
-        vbr quality
-        <select name="mp3-quality">
-            {{range $key, $value := .Mp3Options.Qualities}}
-                <option value="{{ $key }}">{{ $value }}</option>
-            {{end}}
-        </select>
+        <div class="mp3-bit-rate-mode-options mp3-{{ .Mp3Options.VBR }}-options">
+            vbr quality
+            <select name="mp3-vbr-quality">
+                {{range $key, $value := .Mp3Options.VBRQualities}}
+                    <option value="{{ $key }}">{{ $value }}</option>
+                {{end}}
+            </select>
+        </div>
+
+        <input type="checkbox" id="mp3-use-quality" name="mp3-use-quality" value="true">define quality<br>
+
+        <div id="mp3-quality">
+            vbr quality
+            <select name="mp3-quality">
+                {{range $key, $value := .Mp3Options.Qualities}}
+                    <option value="{{ $key }}">{{ $value }}</option>
+                {{end}}
+            </select>
+        </div>
     </div>
-        <input type="submit" value="convert">
+    <input id="submit" type="submit" value="convert">
     </form>
 </body>
 

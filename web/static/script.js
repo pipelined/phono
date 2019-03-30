@@ -25,4 +25,11 @@ $(document).ready(function() {
             $('#mp3-quality').hide();
         }
     })
+
+    $("#submit").click(function(e){
+        var filePath = $('#input-file').val();
+        var fileName = filePath.substr(filePath.lastIndexOf('\\') + 1);
+        var ext = fileName.split('.')[1];
+        $('#convert').attr('action', ext).submit();
+    });
 });

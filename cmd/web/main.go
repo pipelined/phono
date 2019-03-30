@@ -8,6 +8,7 @@ import (
 	"mime"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -163,20 +164,29 @@ func parseIntValue(r *http.Request, key, name string) (int, error) {
 }
 
 const (
-	maxInputSize = 2 * 1024 * 1024
+	wavMaxSize = 2 * 1024 * 1024
+	mp3MaxSize = 15 * 1024 * 1024
 )
 
 // convertHandler converts form files to the format provided y form.
-func convertHandler(indexTemplate *template.Template, maxSize int64, path string) http.Handler {
+func convertHandler(indexTemplate *template.Template, maxSizes map[string]int64, tmpPath string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
 			indexTemplate.Execute(w, &convertFormData)
 		case http.MethodPost:
-			// check max size
-			r.Body = http.MaxBytesReader(w, r.Body, maxSize)
-			if err := r.ParseMultipartForm(maxSize); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+			// extract input format from the path
+			format := path.Base(r.URL.Path)
+			// get max size for the format
+			if maxSize, ok := maxSizes[format]; ok {
+				r.Body = http.MaxBytesReader(w, r.Body, maxSize)
+				// check max size
+				if err := r.ParseMultipartForm(maxSize); err != nil {
+					http.Error(w, err.Error(), http.StatusBadRequest)
+					return
+				}
+			} else {
+				http.Error(w, fmt.Sprintf("Format %s not supported", format), http.StatusBadRequest)
 				return
 			}
 
@@ -197,7 +207,7 @@ func convertHandler(indexTemplate *template.Template, maxSize int64, path string
 			}
 
 			// create temp file
-			tmpFileName := tmpFileName(path)
+			tmpFileName := tmpFileName(tmpPath)
 			tmpFile, err := os.Create(tmpFileName)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Error creating temp file: %v", err), http.StatusInternalServerError)
@@ -246,9 +256,14 @@ func main() {
 		}
 	}
 
+	maxSizes := map[string]int64{
+		"wav": wavMaxSize,
+		"mp3": mp3MaxSize,
+	}
+
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
 	// setting router rule
-	http.Handle("/", convertHandler(indexTemplate, maxInputSize, tmpPath))
+	http.Handle("/", convertHandler(indexTemplate, maxSizes, tmpPath))
 	err := http.ListenAndServe(":8080", nil) // setting listening port
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)

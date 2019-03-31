@@ -1,3 +1,7 @@
+*{
+    font-family: sans-serif;
+}
+
 #output-formats{
     display: none;
 }

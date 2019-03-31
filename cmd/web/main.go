@@ -39,9 +39,6 @@ type mp3Options struct {
 	BitRateModes  map[mp3.BitRateMode]string
 	ChannelModes  map[mp3.ChannelMode]string
 	DefineQuality bool
-	Qualities     map[mp3.Quality]string
-	VBRQualities  map[mp3.VBRQuality]string
-	BitRates      []int
 }
 
 var (
@@ -62,28 +59,6 @@ var (
 			CBR:          int(mp3.CBR),
 			BitRateModes: convert.Supported.Mp3BitRateModes,
 			ChannelModes: convert.Supported.Mp3ChannelModes,
-			VBRQualities: convert.Supported.Mp3VBRQualities,
-			Qualities:    convert.Supported.Mp3Qualities,
-			BitRates: []int{
-				8,
-				16,
-				24,
-				32,
-				40,
-				48,
-				56,
-				64,
-				80,
-				96,
-				112,
-				128,
-				144,
-				160,
-				192,
-				224,
-				256,
-				320,
-			},
 		},
 	}
 )

@@ -14,11 +14,14 @@
     <br>
     
     <div id="output-formats">
+        output 
         {{range $key, $value := .OutFormats}}
             <input type="radio" id="{{ $key }}" value="{{ $value }}" name="format" class="format">
             <label for="{{ $key }}">{{ $value }}</label>
         {{end}}
+    <br>
     </div>
+    
 
     <div id="wav-options" class="output-options" display="none">
         bit depth
@@ -28,7 +31,9 @@
                 <option value="{{ $key }}">{{ $value }}</option>
             {{end}}
         </select>
+    <br>
     </div>
+
 
     <div id="mp3-options" class="output-options">
         channel mode
@@ -38,6 +43,7 @@
                 <option value="{{ $key }}">{{ $value }}</option>
             {{end}}
         </select>
+        <br>
 
         bit rate mode
         <select id="mp3-bit-rate-mode" name="mp3-bit-rate-mode">
@@ -46,35 +52,24 @@
                 <option id="{{ $value }}" value="{{ printf "%d" $key }}">{{ $value }}</option>
             {{end}}
         </select>
+        <br>
         
         <div class="mp3-bit-rate-mode-options mp3-{{ .Mp3Options.ABR }}-options mp3-{{ .Mp3Options.CBR }}-options">
-            bit rate 
-            <select name="mp3-bit-rate">
-                {{range $key, $value := .Mp3Options.BitRates}}
-                    <option value="{{ $value }}">{{ $value }}</option>
-                {{end}}
-            </select>
+            bit rate [8-320]
+            <input type="text" name="mp3-bit-rate" maxlength="3" size="3">
         </div> 
 
         <div class="mp3-bit-rate-mode-options mp3-{{ .Mp3Options.VBR }}-options">
-            vbr quality
-            <select name="mp3-vbr-quality">
-                {{range $key, $value := .Mp3Options.VBRQualities}}
-                    <option value="{{ $key }}">{{ $value }}</option>
-                {{end}}
-            </select>
+            vbr quality [0-10]
+            <input type="text" name="mp3-vbr-quality" maxlength="2" size="3">
         </div>
 
-        <input type="checkbox" id="mp3-use-quality" name="mp3-use-quality" value="true">define quality<br>
-
+        <input type="checkbox" id="mp3-use-quality" name="mp3-use-quality" value="true">quality
         <div id="mp3-quality">
-            quality
-            <select name="mp3-quality">
-                {{range $key, $value := .Mp3Options.Qualities}}
-                    <option value="{{ $key }}">{{ $value }}</option>
-                {{end}}
-            </select>
-        </div>  
+            [0-10]
+            <input type="text" name="mp3-quality" maxlength="2" size="3">
+        </div>
+        <br>  
     </div>
     
     </form>

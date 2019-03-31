@@ -20,7 +20,7 @@ $(document).ready(function() {
     // use mp3 quality
     $('#mp3-use-quality').change(function(){
         if (this.checked) {
-            $('#mp3-quality').show();
+            $('#mp3-quality').show().css("display", "inline");
         } else {
             $('#mp3-quality').hide();
         }

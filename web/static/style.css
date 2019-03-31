@@ -1,9 +1,19 @@
 *{
-    font-family: sans-serif;
+    font-family: Verdana;
 }
 
-#output-formats{
-    display: none;
+form {
+    margin: 0;
+}
+
+button {
+    background:none!important;
+    color:inherit;
+    border:none; 
+    padding:0!important;
+    font: inherit;
+    border-bottom:1px solid #444; 
+    cursor: pointer;
 }
 
 .output-options{
@@ -14,7 +24,25 @@
     display: none;
 }
 
+#input-file-label{
+    cursor: pointer;
+    padding:0!important;
+    border-bottom:1px solid #444; 
+}
+  
+#input-file{
+    display:none;
+}
+
+#output-formats{
+    display: none;
+}
+
 #mp3-quality{
+    padding-bottom: 10px;
+}
+
+#mp3-quality-value{
     display: none;
 }
 

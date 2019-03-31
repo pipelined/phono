@@ -1,5 +1,13 @@
 $(document).ready(function() {
     document.getElementById("convert").reset();
+
+    $(function(){
+        $("#upload_link").on('click', function(e){
+            e.preventDefault();
+            $("#input-file:hidden").trigger('click');
+        });
+    });
+
     $('#input-file').change(function(){
         $('#output-formats').show();
     })
@@ -20,9 +28,9 @@ $(document).ready(function() {
     // use mp3 quality
     $('#mp3-use-quality').change(function(){
         if (this.checked) {
-            $('#mp3-quality').show().css("display", "inline");
+            $('#mp3-quality-value').show().css("display", "inline");
         } else {
-            $('#mp3-quality').hide();
+            $('#mp3-quality-value').hide();
         }
     })
 

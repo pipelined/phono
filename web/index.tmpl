@@ -11,6 +11,7 @@
     <form id="convert" enctype="multipart/form-data" method="post">
 
     <input id="input-file" type="file" name="input-file" accept="{{.Accept}}"/>
+    <label id="input-file-label" for="input-file">select file</label>
     <br>
     
     <div id="output-formats">
@@ -64,16 +65,16 @@
             <input type="text" name="mp3-vbr-quality" maxlength="2" size="3">
         </div>
 
-        <input type="checkbox" id="mp3-use-quality" name="mp3-use-quality" value="true">quality
         <div id="mp3-quality">
-            [0-10]
-            <input type="text" name="mp3-quality" maxlength="2" size="3">
+            <input type="checkbox" id="mp3-use-quality" name="mp3-use-quality" value="true">quality
+            <div id="mp3-quality-value">
+                [0-10]
+                <input type="text" name="mp3-quality" maxlength="2" size="3">
+            </div>
+            <br>  
         </div>
-        <br>  
     </div>
-    
     </form>
-
     <button id="submit" type="button">convert</button> 
 </body>
 

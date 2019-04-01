@@ -20,8 +20,8 @@ import (
 )
 
 const (
-	wavMaxSize = 2 * 1024 * 1024
-	mp3MaxSize = 15 * 1024 * 1024
+	wavMaxSize = 10 * 1024 * 1024
+	mp3MaxSize = 1 * 1024 * 1024
 )
 
 // convertForm provides a form for a user to define conversion parameters.

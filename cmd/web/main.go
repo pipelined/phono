@@ -19,6 +19,11 @@ import (
 	"github.com/rs/xid"
 )
 
+const (
+	wavMaxSize = 2 * 1024 * 1024
+	mp3MaxSize = 15 * 1024 * 1024
+)
+
 // convertForm provides a form for a user to define conversion parameters.
 type convertForm struct {
 	Accept     string
@@ -138,22 +143,17 @@ func parseIntValue(r *http.Request, key, name string) (int, error) {
 	return val, nil
 }
 
-const (
-	wavMaxSize = 2 * 1024 * 1024
-	mp3MaxSize = 15 * 1024 * 1024
-)
-
 // convertHandler converts form files to the format provided y form.
-func convertHandler(indexTemplate *template.Template, maxSizes map[string]int64, tmpPath string) http.Handler {
+func convertHandler(indexTemplate *template.Template, maxSizes map[convert.Format]int64, tmpPath string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
 			indexTemplate.Execute(w, &convertFormData)
 		case http.MethodPost:
 			// extract input format from the path
-			format := path.Base(r.URL.Path)
+			inFormat := convert.Format(path.Base(r.URL.Path))
 			// get max size for the format
-			if maxSize, ok := maxSizes[format]; ok {
+			if maxSize, ok := maxSizes[inFormat]; ok {
 				r.Body = http.MaxBytesReader(w, r.Body, maxSize)
 				// check max size
 				if err := r.ParseMultipartForm(maxSize); err != nil {
@@ -161,7 +161,7 @@ func convertHandler(indexTemplate *template.Template, maxSizes map[string]int64,
 					return
 				}
 			} else {
-				http.Error(w, fmt.Sprintf("Format %s not supported", format), http.StatusBadRequest)
+				http.Error(w, fmt.Sprintf("Format %s not supported", inFormat), http.StatusBadRequest)
 				return
 			}
 
@@ -172,7 +172,6 @@ func convertHandler(indexTemplate *template.Template, maxSizes map[string]int64,
 				return
 			}
 			defer formFile.Close()
-			inFormat := convert.Format(filepath.Ext(handler.Filename))
 
 			// parse output config
 			outConfig, err := parseConfig(r)
@@ -231,9 +230,10 @@ func main() {
 		}
 	}
 
-	maxSizes := map[string]int64{
-		"wav": wavMaxSize,
-		"mp3": mp3MaxSize,
+	// max sizes for different input formats.
+	maxSizes := map[convert.Format]int64{
+		convert.WavFormat: wavMaxSize,
+		convert.Mp3Format: mp3MaxSize,
 	}
 
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))

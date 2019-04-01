@@ -1,3 +1,8 @@
+function getFileName(fileId) {
+    var filePath = $(fileId).val();
+    return filePath.substr(filePath.lastIndexOf('\\') + 1);
+}
+
 $(document).ready(function() {
     document.getElementById("convert").reset();
 
@@ -9,6 +14,7 @@ $(document).ready(function() {
     });
 
     $('#input-file').change(function(){
+        $('#input-file-label').text(getFileName('#input-file'));
         $('#output-formats').show();
     })
 
@@ -35,8 +41,7 @@ $(document).ready(function() {
     })
 
     $("#submit").click(function(e){
-        var filePath = $('#input-file').val();
-        var fileName = filePath.substr(filePath.lastIndexOf('\\') + 1);
+        var fileName = getFileName('#input-file')
         var ext = fileName.split('.')[1];
         $('#convert').attr('action', ext).submit();
     });

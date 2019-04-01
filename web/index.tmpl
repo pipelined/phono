@@ -10,9 +10,11 @@
     <p id="demo"></p>
     <form id="convert" enctype="multipart/form-data" method="post">
 
-    <input id="input-file" type="file" name="input-file" accept="{{.Accept}}"/>
-    <label id="input-file-label" for="input-file">select file</label>
-    <br>
+    <div id="file">
+        <input id="input-file" type="file" name="input-file" accept="{{.Accept}}"/>
+        <label id="input-file-label" for="input-file">select file</label>
+    </div>
+
     
     <div id="output-formats">
         output 

@@ -12,9 +12,9 @@ import (
 
 const (
 	// WavFormat represents .wav files.
-	WavFormat = Format(".wav")
+	WavFormat = Format("wav")
 	// Mp3Format represents .mp3 files.
-	Mp3Format = Format(".mp3")
+	Mp3Format = Format("mp3")
 )
 
 var (

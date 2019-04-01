@@ -15,11 +15,11 @@ $(document).ready(function() {
 
     $('#input-file').change(function(){
         $('#input-file-label').text(getFileName('#input-file'));
-        $('#output-formats').show();
+        $('#output-format').show();
     })
 
     // select output format and show options
-    $('.format').click(function(){
+    $('.output-formats').click(function(){
         $('.output-options').hide();
         $('#'+this.id+'-options').show();
         $('#submit').show();

@@ -16,10 +16,10 @@
     </div>
 
     
-    <div id="output-formats">
+    <div id="output-format">
         output 
         {{range $key, $value := .OutFormats}}
-            <input type="radio" id="{{ $key }}" value="{{ $value }}" name="format" class="format">
+            <input type="radio" id="{{ $key }}" value="{{ $value }}" name="format" class="output-formats">
             <label for="{{ $key }}">{{ $value }}</label>
         {{end}}
     <br>

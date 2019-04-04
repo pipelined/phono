@@ -12,6 +12,8 @@ require (
 	github.com/pipelined/signal v0.0.0-20190303105250-40bacde8022c
 	github.com/pipelined/wav v0.0.0-20190325201312-7b36fae928f4
 	github.com/rs/xid v1.2.1
+	github.com/shurcooL/httpfs v0.0.0-20181222201310-74dc9339e414 // indirect
+	github.com/shurcooL/vfsgen v0.0.0-20181202132449-6a9ea43bcacd
 	github.com/stretchr/objx v0.1.1 // indirect
 	golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c // indirect
 	golang.org/x/exp v0.0.0-20190321205749-f0864edee7f3 // indirect

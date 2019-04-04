@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pipelined/convert/assets"
+
 	"github.com/pipelined/convert"
 	"github.com/pipelined/mp3"
 	"github.com/pipelined/signal"
@@ -47,7 +49,7 @@ type mp3Options struct {
 }
 
 var (
-	indexTemplate = template.Must(template.ParseFiles("web/index.tmpl"))
+	indexTemplate = template.Must(assets.GetTemplate())
 
 	convertFormData = convertForm{
 		Accept: fmt.Sprintf("%s, %s", convert.WavFormat, convert.Mp3Format),
@@ -236,7 +238,7 @@ func main() {
 		convert.Mp3Format: mp3MaxSize,
 	}
 
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
+	http.Handle("/static/", http.FileServer(assets.Assets))
 	// setting router rule
 	http.Handle("/", convertHandler(indexTemplate, maxSizes, tmpPath))
 	err := http.ListenAndServe(":8080", nil) // setting listening port

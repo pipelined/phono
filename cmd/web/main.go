@@ -29,7 +29,7 @@ const (
 // convertForm provides a form for a user to define conversion parameters.
 type convertForm struct {
 	Accept     string
-	OutFormats map[string]convert.Format
+	OutFormats []convert.Format
 	WavOptions wavOptions
 	Mp3Options mp3Options
 }
@@ -49,13 +49,13 @@ type mp3Options struct {
 }
 
 var (
-	indexTemplate = template.Must(assets.GetTemplate())
+	indexTemplate = template.Must(template.ParseFiles("web/index.tmpl"))
 
 	convertFormData = convertForm{
 		Accept: fmt.Sprintf("%s, %s", convert.WavFormat, convert.Mp3Format),
-		OutFormats: map[string]convert.Format{
-			"wav": convert.WavFormat,
-			"mp3": convert.Mp3Format,
+		OutFormats: []convert.Format{
+			convert.WavFormat,
+			convert.Mp3Format,
 		},
 		WavOptions: wavOptions{
 			BitDepths: convert.Supported.WavBitDepths,

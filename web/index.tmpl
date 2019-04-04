@@ -18,9 +18,9 @@
     
     <div id="output-format">
         output 
-        {{range $key, $value := .OutFormats}}
-            <input type="radio" id="{{ $key }}" value="{{ $value }}" name="format" class="output-formats">
-            <label for="{{ $key }}">{{ $value }}</label>
+        {{range $key := .OutFormats}}
+            <input type="radio" id="{{ $key }}" value="{{ $key }}" name="format" class="output-formats">
+            <label for="{{ $key }}">{{ $key }}</label>
         {{end}}
     <br>
     </div>

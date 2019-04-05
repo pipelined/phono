@@ -13,8 +13,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pipelined/convert/assets"
-
 	"github.com/pipelined/convert"
 	"github.com/pipelined/mp3"
 	"github.com/pipelined/signal"
@@ -238,7 +236,6 @@ func main() {
 		convert.Mp3Format: mp3MaxSize,
 	}
 
-	http.Handle("/static/", http.FileServer(assets.Assets))
 	// setting router rule
 	http.Handle("/", convertHandler(indexTemplate, maxSizes, tmpPath))
 	err := http.ListenAndServe(":8080", nil) // setting listening port

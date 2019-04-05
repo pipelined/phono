@@ -52,7 +52,7 @@ var (
 	indexTemplate = template.Must(template.ParseFiles("web/index.tmpl"))
 
 	convertFormData = convertForm{
-		Accept: fmt.Sprintf("%s, %s", convert.WavFormat, convert.Mp3Format),
+		Accept: fmt.Sprintf(".%s, .%s", convert.WavFormat, convert.Mp3Format),
 		OutFormats: []convert.Format{
 			convert.WavFormat,
 			convert.Mp3Format,

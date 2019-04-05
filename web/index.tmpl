@@ -2,7 +2,6 @@
 
 <head>
     <link rel="stylesheet" href="static/style.css" type="text/css">
-    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
     <script src="static/script.js"></script> 
 </head>
 
@@ -11,7 +10,7 @@
     <form id="convert" enctype="multipart/form-data" method="post">
 
     <div id="file">
-        <input id="input-file" type="file" name="input-file" accept="{{.Accept}}" style="display:none"/>
+        <input id="input-file" type="file" name="input-file" accept="{{.Accept}}" style="display:none" onchange="onInputFileChange()"/>
         <label id="input-file-label" for="input-file">select file</label>
     </div>
 
@@ -19,7 +18,7 @@
     <div id="output-format" style="display:none">
         output 
         {{range $key := .OutFormats}}
-            <input type="radio" id="{{ $key }}" value="{{ $key }}" name="format" class="output-formats">
+            <input type="radio" id="{{ $key }}" value="{{ $key }}" name="format" class="output-formats" onclick="onOutputFormatsClick(this)">
             <label for="{{ $key }}">{{ $key }}</label>
         {{end}}
     <br>
@@ -49,7 +48,7 @@
         <br>
 
         bit rate mode
-        <select id="mp3-bit-rate-mode" name="mp3-bit-rate-mode">
+        <select id="mp3-bit-rate-mode" name="mp3-bit-rate-mode" onchange="onMp3BitRateModeChange(this)">
             <option hidden disabled selected value>select</option>
             {{range $key, $value := .Mp3Options.BitRateModes}}
                 <option id="{{ $value }}" value="{{ printf "%d" $key }}">{{ $value }}</option>
@@ -68,8 +67,8 @@
         </div>
 
         <div id="mp3-quality">
-            <input type="checkbox" id="mp3-use-quality" name="mp3-use-quality" value="true">quality
-            <div id="mp3-quality-value">
+            <input type="checkbox" id="mp3-use-quality" name="mp3-use-quality" value="true" onchange="onMp3UseQUalityChange(this)">quality
+            <div id="mp3-quality-value" style="display:inline;visibility:hidden">
                 [0-10]
                 <input type="text" name="mp3-quality" maxlength="2" size="3">
             </div>
@@ -77,7 +76,7 @@
         </div>
     </div>
     </form>
-    <button id="submit" type="button" style="display:none">convert</button> 
+    <button id="submit" type="button" style="display:none" onclick="onSubmitClick()">convert</button> 
 </body>
 
 </html>

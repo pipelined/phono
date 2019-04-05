@@ -40,9 +40,9 @@ type wavOptions struct {
 }
 
 type mp3Options struct {
-	VBR           int
-	ABR           int
-	CBR           int
+	VBR           mp3.BitRateMode
+	ABR           mp3.BitRateMode
+	CBR           mp3.BitRateMode
 	BitRateModes  map[mp3.BitRateMode]string
 	ChannelModes  map[mp3.ChannelMode]string
 	DefineQuality bool
@@ -61,9 +61,9 @@ var (
 			BitDepths: convert.Supported.WavBitDepths,
 		},
 		Mp3Options: mp3Options{
-			VBR:          int(mp3.VBR),
-			ABR:          int(mp3.ABR),
-			CBR:          int(mp3.CBR),
+			VBR:          mp3.VBR,
+			ABR:          mp3.ABR,
+			CBR:          mp3.CBR,
 			BitRateModes: convert.Supported.Mp3BitRateModes,
 			ChannelModes: convert.Supported.Mp3ChannelModes,
 		},

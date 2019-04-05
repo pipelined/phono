@@ -3,6 +3,17 @@ function getFileName(fileId) {
     return filePath.substr(filePath.lastIndexOf('\\') + 1);
 }
 
+function displayClass(className, display) {
+    var elements = document.getElementsByClassName(className);
+    for (var i = 0, ii = elements.length; i < ii; i++) {
+        elements[i].style.display = display ? '' : 'none';
+    };
+}
+
+function displayId(id, mode){
+    document.getElementById(id).style.display = mode;
+}
+
 $(document).ready(function() {
     document.getElementById("convert").reset();
 
@@ -14,29 +25,30 @@ $(document).ready(function() {
     });
 
     $('#input-file').change(function(){
-        $('#input-file-label').text(getFileName('#input-file'));
-        $('#output-format').show();
+        displayClass('input-file-label', true);
+        displayId('output-format', "");
     })
 
     // select output format and show options
     $('.output-formats').click(function(){
-        $('.output-options').hide();
-        $('#'+this.id+'-options').show();
-        $('#submit').show();
+        displayClass('output-options', false);
+        displayId(this.id+'-options', "");
+        displayId('submit', "");
     })
 
     // select mp3 bit rate mode
     $('#mp3-bit-rate-mode').change(function(){
-        $('.mp3-bit-rate-mode-options').hide();
-        $('.mp3-'+this.value+'-options').show();
+        displayClass('mp3-bit-rate-mode-options', false);
+        var selectedOptions = 'mp3-'+this.options[this.selectedIndex].id+'-options';
+        displayClass(selectedOptions, true);
     })
 
     // use mp3 quality
     $('#mp3-use-quality').change(function(){
         if (this.checked) {
-            $('#mp3-quality-value').show().css("display", "inline");
+            displayId('mp3-quality-value', "inline");
         } else {
-            $('#mp3-quality-value').hide();
+            displayId('mp3-quality-value', "none");
         }
     })
 

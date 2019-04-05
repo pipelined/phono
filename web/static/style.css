@@ -16,36 +16,17 @@ button {
     cursor: pointer;
 }
 
-.output-options{
-    display: none;
-}
-
-.mp3-bit-rate-mode-options{
-    display: none;
-}
-
 #input-file-label{
     cursor: pointer;
     padding:0!important;
     border-bottom:1px solid #444; 
 }
-  
-#input-file{
-    display:none;
-}
 
-#output-format{
-    display: none;
-}
 
 #mp3-quality{
     padding-bottom: 10px;
 }
 
 #mp3-quality-value{
-    display: none;
-}
-
-#submit{
     display: none;
 }

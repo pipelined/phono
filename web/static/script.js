@@ -1,5 +1,5 @@
-function getFileName(fileId) {
-    var filePath = $(fileId).val();
+function getFileName(id) {
+    var filePath = document.getElementById(id).value;
     return filePath.substr(filePath.lastIndexOf('\\') + 1);
 }
 
@@ -20,11 +20,12 @@ $(document).ready(function() {
     $(function(){
         $("#upload_link").on('click', function(e){
             e.preventDefault();
-            $("#input-file:hidden").trigger('click');
+            document.getElementById('input-file:hidden').click();
         });
     });
 
     $('#input-file').change(function(){
+        document.getElementById('input-file-label').innerHTML = getFileName('input-file');
         displayClass('input-file-label', true);
         displayId('output-format', "");
     })
@@ -53,8 +54,10 @@ $(document).ready(function() {
     })
 
     $("#submit").click(function(e){
-        var fileName = getFileName('#input-file')
+        var fileName = getFileName('input-file')
         var ext = fileName.split('.')[1];
-        $('#convert').attr('action', ext).submit();
+        var convert = document.getElementById('convert');
+        convert.action = ext;
+        convert.submit();
     });
 });

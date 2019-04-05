@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"io/ioutil"
 	"log"
 	"mime"
 	"net/http"
@@ -222,13 +223,11 @@ func convertHandler(indexTemplate *template.Template, maxSizes map[convert.Forma
 }
 
 func main() {
-	tmpPath := "tmp"
-	if _, err := os.Stat(tmpPath); os.IsNotExist(err) {
-		err = os.Mkdir(tmpPath, os.ModePerm)
-		if err != nil {
-			log.Fatal(fmt.Sprintf("Failed to create temp folder: %v", err))
-		}
+	dir, err := ioutil.TempDir(".", "phono")
+	if err != nil {
+		log.Fatal(fmt.Sprintf("Failed to create temp folder: %v", err))
 	}
+	defer os.RemoveAll(dir) // clean up
 
 	// max sizes for different input formats.
 	maxSizes := map[convert.Format]int64{
@@ -237,8 +236,8 @@ func main() {
 	}
 
 	// setting router rule
-	http.Handle("/", convertHandler(indexTemplate, maxSizes, tmpPath))
-	err := http.ListenAndServe(":8080", nil) // setting listening port
+	http.Handle("/", convertHandler(indexTemplate, maxSizes, dir))
+	err = http.ListenAndServe(":8080", nil) // setting listening port
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}

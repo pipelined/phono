@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/pipelined/phono/handler"
+	"github.com/pipelined/phono/template"
 
 	"github.com/pipelined/phono/convert"
 )
@@ -31,7 +32,7 @@ func main() {
 	}
 
 	// setting router rule
-	http.Handle("/", handler.Convert(maxSizes, dir))
+	http.Handle("/", handler.Convert(template.ConvertForm, maxSizes, dir))
 	err = http.ListenAndServe(":8080", nil) // setting listening port
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)

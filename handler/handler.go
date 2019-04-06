@@ -13,21 +13,21 @@ import (
 	"strings"
 
 	"github.com/pipelined/phono/convert"
-	"github.com/pipelined/phono/handler/template"
 	"github.com/rs/xid"
 )
 
-// type ConvertForm interface {
-// 	Data() *bytes.Buffer
-// 	Parse(*http.Request) convert.OutputConfig
-// }
+// ConvertForm contains bytes data of HTML form and provides logic to parse it.
+type ConvertForm interface {
+	Data() []byte
+	Parse(*http.Request) (convert.OutputConfig, error)
+}
 
 // Convert converts form files to the format provided y form.
-func Convert(maxSizes map[convert.Format]int64, tmpPath string) http.Handler {
+func Convert(convertForm ConvertForm, maxSizes map[convert.Format]int64, tmpPath string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
-			_, err := w.Write(template.ConvertForm)
+			_, err := w.Write(convertForm.Data())
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
@@ -56,7 +56,7 @@ func Convert(maxSizes map[convert.Format]int64, tmpPath string) http.Handler {
 			defer formFile.Close()
 
 			// parse output config
-			outConfig, err := parseConfig(r)
+			outConfig, err := convertForm.Parse(r)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return

@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/pipelined/phono/cmd"
 	"github.com/pipelined/phono/handler"
@@ -41,11 +44,30 @@ func main() {
 }
 
 func serve() {
+	// temporary directory
 	dir, err := ioutil.TempDir(".", "phono")
 	if err != nil {
 		log.Fatal(fmt.Sprintf("Failed to create temp folder: %v", err))
 	}
-	defer os.RemoveAll(dir) // clean up
+
+	interrupt := make(chan struct{})
+	var server http.Server
+	go func() {
+		sigint := make(chan os.Signal, 1)
+
+		// interrupt and sigterm signal
+		signal.Notify(sigint, os.Interrupt)
+		signal.Notify(sigint, syscall.SIGTERM)
+
+		// block until signal received
+		<-sigint
+
+		// interrupt signal received, shut down
+		if err := server.Shutdown(context.Background()); err != nil {
+			log.Printf("HTTP server Shutdown: %v", err)
+		}
+		close(interrupt)
+	}()
 
 	// max sizes for different input formats.
 	maxSizes := map[convert.Format]int64{
@@ -55,8 +77,16 @@ func serve() {
 
 	// setting router rule
 	http.Handle("/", handler.Convert(template.ConvertForm, maxSizes, dir))
-	err = http.ListenAndServe(":8080", nil) // setting listening port
+	if err := server.ListenAndServe(); err != http.ErrServerClosed {
+		log.Printf("HTTP server ListenAndServe error: %v", err)
+	}
+
+	// block until shutdown executed
+	<-interrupt
+
+	// clean up
+	err = os.RemoveAll(dir)
 	if err != nil {
-		log.Fatal("ListenAndServe: ", err)
+		log.Printf("Clean up error: %v", err)
 	}
 }

@@ -14,8 +14,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pipelined/convert"
 	"github.com/pipelined/mp3"
+	"github.com/pipelined/phono/convert"
 	"github.com/pipelined/signal"
 	"github.com/rs/xid"
 )

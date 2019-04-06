@@ -1,4 +1,4 @@
-module github.com/pipelined/convert
+module github.com/pipelined/phono
 
 go 1.12
 

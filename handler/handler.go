@@ -5,9 +5,9 @@ import (
 	"io"
 	"log"
 	"mime"
+	"mime/multipart"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -19,7 +19,9 @@ import (
 // ConvertForm contains bytes data of HTML form and provides logic to parse it.
 type ConvertForm interface {
 	Data() []byte
+	Format(*http.Request) convert.Format
 	Parse(*http.Request) (convert.OutputConfig, error)
+	File(*http.Request) (multipart.File, *multipart.FileHeader, error)
 }
 
 // Convert converts form files to the format provided y form.
@@ -33,7 +35,7 @@ func Convert(convertForm ConvertForm, maxSizes map[convert.Format]int64, tmpPath
 			}
 		case http.MethodPost:
 			// extract input format from the path
-			inFormat := convert.Format(path.Base(r.URL.Path))
+			inFormat := convertForm.Format(r)
 			// get max size for the format
 			if maxSize, ok := maxSizes[inFormat]; ok {
 				r.Body = http.MaxBytesReader(w, r.Body, maxSize)
@@ -48,7 +50,7 @@ func Convert(convertForm ConvertForm, maxSizes map[convert.Format]int64, tmpPath
 			}
 
 			// obtain file handler
-			formFile, handler, err := r.FormFile("input-file")
+			formFile, handler, err := convertForm.File(r)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Invalid file: %v", err), http.StatusBadRequest)
 				return

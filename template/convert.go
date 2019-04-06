@@ -3,7 +3,9 @@ package template
 import (
 	"bytes"
 	"fmt"
+	"mime/multipart"
 	"net/http"
+	"path"
 	"strconv"
 	"text/template"
 
@@ -59,7 +61,7 @@ var (
 		},
 	}
 
-	// ConvertForm is the data of convert form, ready to be served.
+	// ConvertForm is the convert form.
 	ConvertForm = parseConvertForm()
 )
 
@@ -71,8 +73,19 @@ func parseConvertForm() convertForm {
 	return convertForm{data: b.Bytes()}
 }
 
+// Data returns serialized form data, ready to be served.
 func (cf convertForm) Data() []byte {
 	return cf.data
+}
+
+// Format parses input format from http request.
+func (convertForm) Format(r *http.Request) convert.Format {
+	return convert.Format(path.Base(r.URL.Path))
+}
+
+// File returns multipart file from http request.
+func (convertForm) File(r *http.Request) (multipart.File, *multipart.FileHeader, error) {
+	return r.FormFile("input-file")
 }
 
 // Prase form data into output config.

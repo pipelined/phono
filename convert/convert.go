@@ -91,117 +91,8 @@ type Source interface {
 	io.Closer
 }
 
-// Destination is the output of convertation.
-type Destination interface {
-	io.Writer
-	io.Seeker
-}
-
 // Format is a file extension.
 type Format string
-
-// OutputConfig is an interface that defines how Sink is created out of configuration.
-type OutputConfig interface {
-	Format() Format
-	sink(Destination) (pipe.Sink, error)
-}
-
-// WavConfig is the configuration needed for wav output.
-type WavConfig struct {
-	signal.BitDepth
-}
-
-// Mp3Config is the configuration needed for mp3 output.
-type Mp3Config struct {
-	mp3.BitRateMode
-	mp3.ChannelMode
-	BitRate int
-	mp3.VBRQuality
-	UseQuality bool
-	mp3.Quality
-}
-
-// Sink creates wav sink with provided config.
-// Returns error if provided configuration is not supported.
-func (c WavConfig) sink(d Destination) (pipe.Sink, error) {
-	// check if bit depth is supported
-	if _, ok := Supported.WavBitDepths[c.BitDepth]; !ok {
-		return nil, fmt.Errorf("Bit depth %v is not supported", c.BitDepth)
-	}
-
-	return &wav.Sink{
-		WriteSeeker: d,
-		BitDepth:    c.BitDepth,
-	}, nil
-}
-
-// Format returns wav format extension.
-func (WavConfig) Format() Format {
-	return WavFormat
-}
-
-// Sink creates mp3 sink with provided config.
-func (c Mp3Config) sink(d Destination) (pipe.Sink, error) {
-	// check if bit rate mode is supported
-	if _, ok := Supported.Mp3BitRateModes[c.BitRateMode]; !ok {
-		return nil, fmt.Errorf("Bit rate mode %v is not supported", c.BitRateMode)
-	}
-
-	// check if channel mode is supported
-	if _, ok := Supported.Mp3ChannelModes[c.ChannelMode]; !ok {
-		return nil, fmt.Errorf("Channel mode %v is not supported", c.ChannelMode)
-	}
-
-	// check if quality is supported
-	if c.UseQuality {
-		if _, ok := Supported.Mp3Qualities[c.Quality]; !ok {
-			return nil, fmt.Errorf("Quality %v is not supported", c.Quality)
-		}
-	}
-
-	if c.BitRateMode == mp3.VBR {
-		// validate VBR quality
-		if _, ok := Supported.Mp3VBRQualities[c.VBRQuality]; !ok {
-			return nil, fmt.Errorf("VBR quality %v is not supported", c.VBRQuality)
-		}
-	} else {
-		// validate bit rate for ABR and CBR
-		if c.BitRate > mp3.MaxBitRate || c.BitRate < mp3.MinBitRate {
-			return nil, fmt.Errorf("Bit rate %v is not supported. Provide value between %d and %d", c.BitRate, mp3.MinBitRate, mp3.MaxBitRate)
-		}
-	}
-
-	var s mp3.Sink
-	switch c.BitRateMode {
-	case mp3.CBR:
-		s = &mp3.CBRSink{
-			Writer:      d,
-			ChannelMode: c.ChannelMode,
-			BitRate:     c.BitRate,
-		}
-	case mp3.ABR:
-		s = &mp3.ABRSink{
-			Writer:      d,
-			ChannelMode: c.ChannelMode,
-			BitRate:     c.BitRate,
-		}
-	case mp3.VBR:
-		s = &mp3.VBRSink{
-			Writer:      d,
-			ChannelMode: c.ChannelMode,
-			VBRQuality:  c.VBRQuality,
-		}
-	}
-	if c.UseQuality {
-		s.SetQuality(c.Quality)
-	}
-	return s, nil
-}
-
-// Format returns mp3 format extension.
-func (Mp3Config) Format() Format {
-	return Mp3Format
-}
 
 func (f Format) pump(s Source) (pipe.Pump, error) {
 	switch f {
@@ -215,14 +106,14 @@ func (f Format) pump(s Source) (pipe.Pump, error) {
 }
 
 // Convert provided source of sourceFormat into destination using destinationConfig.
-func Convert(s Source, d Destination, sourceFormat Format, destinationConfig OutputConfig) error {
+func Convert(s Source, sourceFormat Format, destinationConfig OutputConfig) error {
 	// create pump for input format
 	pump, err := sourceFormat.pump(s)
 	if err != nil {
 		return fmt.Errorf("Unsupported input format: %s", sourceFormat)
 	}
 	// create sink for output format
-	sink, err := destinationConfig.sink(d)
+	sink, err := destinationConfig.sink()
 	if err != nil {
 		return fmt.Errorf("Provided configuration is not supported")
 	}

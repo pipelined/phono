@@ -65,8 +65,7 @@ func Convert(convertForm ConvertForm, maxSizes map[convert.Format]int64, tmpPath
 			}
 
 			// create temp file
-			tmpFileName := tmpFileName(tmpPath)
-			tmpFile, err := os.Create(tmpFileName)
+			tmpFile, err := createTmpFile(outConfig, tmpPath)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Error creating temp file: %v", err), http.StatusInternalServerError)
 				return
@@ -74,7 +73,7 @@ func Convert(convertForm ConvertForm, maxSizes map[convert.Format]int64, tmpPath
 			defer cleanUp(tmpFile)
 
 			// convert file using temp file
-			err = convert.Convert(formFile, tmpFile, inFormat, outConfig)
+			err = convert.Convert(formFile, inFormat, outConfig)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
@@ -105,9 +104,18 @@ func Convert(convertForm ConvertForm, maxSizes map[convert.Format]int64, tmpPath
 	})
 }
 
-// tmpFileName returns temporary file name. It uses xid library to generate names on the fly.
-func tmpFileName(path string) string {
-	return filepath.Join(path, xid.New().String())
+func createTmpFile(output convert.OutputConfig, path string) (*os.File, error) {
+	f, err := os.Create(filepath.Join(path, xid.New().String()))
+	if err != nil {
+		return nil, err
+	}
+	switch config := output.(type) {
+	case *convert.Mp3Config:
+		config.Writer = f
+	case *convert.WavConfig:
+		config.WriteSeeker = f
+	}
+	return f, nil
 }
 
 // outFileName return output file name. It replaces input format extension with output.

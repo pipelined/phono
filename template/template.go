@@ -3,32 +3,34 @@ package template
 import (
 	"bytes"
 	"fmt"
-	"mime/multipart"
+	"io"
 	"net/http"
 	"path"
 	"strconv"
+	"strings"
 	"text/template"
 
 	"github.com/pipelined/mp3"
 	"github.com/pipelined/phono/convert"
+	"github.com/pipelined/pipe"
 	"github.com/pipelined/signal"
+	"github.com/pipelined/wav"
 )
 
-type convertForm struct {
-	data []byte
-}
+// ConvertForm provides user interaction via http form.
+type ConvertForm struct{}
 
 // convertData provides a data for convert form, so user can define conversion parameters.
 type convertData struct {
 	Accept     string
-	OutFormats []convert.Format
+	OutFormats map[string]string
 	WavOptions wavOptions
 	Mp3Options mp3Options
 }
 
 // wavOptions is a struct of wav format options that are available for conversion.
 type wavOptions struct {
-	BitDepths map[signal.BitDepth]string
+	BitDepths map[signal.BitDepth]struct{}
 }
 
 // mp3Options is a struct of mp3 format options that are available for conversion.
@@ -36,34 +38,14 @@ type mp3Options struct {
 	VBR           mp3.BitRateMode
 	ABR           mp3.BitRateMode
 	CBR           mp3.BitRateMode
-	BitRateModes  map[mp3.BitRateMode]string
-	ChannelModes  map[mp3.ChannelMode]string
+	BitRateModes  map[mp3.BitRateMode]struct{}
+	ChannelModes  map[mp3.ChannelMode]struct{}
 	DefineQuality bool
 }
 
 var (
-	convertTemplate = template.Must(template.New("convert").Parse(convertHTML))
-
-	convertFormData = convertData{
-		Accept: fmt.Sprintf(".%s, .%s", convert.WavFormat, convert.Mp3Format),
-		OutFormats: []convert.Format{
-			convert.WavFormat,
-			convert.Mp3Format,
-		},
-		WavOptions: wavOptions{
-			BitDepths: convert.Supported.WavBitDepths,
-		},
-		Mp3Options: mp3Options{
-			VBR:          mp3.VBR,
-			ABR:          mp3.ABR,
-			CBR:          mp3.CBR,
-			BitRateModes: convert.Supported.Mp3BitRateModes,
-			ChannelModes: convert.Supported.Mp3ChannelModes,
-		},
-	}
-
-	// ConvertForm is the convert form.
-	ConvertForm = parseConvertForm()
+	// ConvertFormData is the serialized convert form with values.
+	convertFormData []byte
 )
 
 // ErrUnsupportedConfig is returned when unsupported configuraton passed.
@@ -74,53 +56,122 @@ func (e ErrUnsupportedConfig) Error() string {
 	return string(e)
 }
 
-func parseConvertForm() convertForm {
+// init generates serialized convert form data which is then used during runtime.
+func init() {
+	convertTemplate := template.Must(template.New("convert").Parse(convertHTML))
+
+	convertFormValues := convertData{
+		Accept:     accept(mp3.Extensions, wav.Extensions),
+		OutFormats: outFormats(mp3.DefaultExtension, wav.DefaultExtension),
+		WavOptions: wavOptions{
+			BitDepths: wav.Supported.BitDepths,
+		},
+		Mp3Options: mp3Options{
+			VBR:          mp3.VBR,
+			ABR:          mp3.ABR,
+			CBR:          mp3.CBR,
+			BitRateModes: mp3.Supported.BitRateModes,
+			ChannelModes: mp3.Supported.ChannelModes,
+		},
+	}
 	var b bytes.Buffer
-	if err := convertTemplate.Execute(&b, convertFormData); err != nil {
+	if err := convertTemplate.Execute(&b, convertFormValues); err != nil {
 		panic(fmt.Sprintf("Failed to parse convert template: %v", err))
 	}
-	return convertForm{data: b.Bytes()}
+	convertFormData = b.Bytes()
+}
+
+// accept generates
+func accept(extFns ...extensionsFunc) string {
+	var str strings.Builder
+	for _, fn := range extFns {
+		for _, ext := range fn() {
+			str.WriteString(ext + ",")
+		}
+	}
+	return str.String()
+}
+
+func outFormats(exts ...string) map[string]string {
+	m := make(map[string]string)
+	for _, ext := range exts {
+		m[ext] = ext[1:]
+	}
+	return m
 }
 
 // Data returns serialized form data, ready to be served.
-func (cf convertForm) Data() []byte {
-	return cf.data
+func (ConvertForm) Data() []byte {
+	return convertFormData
 }
 
 // Format parses input format from http request.
-func (convertForm) Format(r *http.Request) convert.Format {
-	return convert.Format(path.Base(r.URL.Path))
+func (ConvertForm) Format(r *http.Request) string {
+	return path.Base(r.URL.Path)
 }
 
-// File returns multipart file from http request.
-func (convertForm) File(r *http.Request) (multipart.File, *multipart.FileHeader, error) {
-	return r.FormFile("input-file")
-}
-
-// Prase form data into output config.
-func (convertForm) Parse(r *http.Request) (convert.OutputConfig, error) {
-	f := convert.Format(r.FormValue("format"))
-	switch f {
-	case convert.WavFormat:
+// Parse form data into output config.
+func (ConvertForm) Parse(r *http.Request) (convert.SinkBuilder, error) {
+	ext := r.FormValue("format")
+	switch ext {
+	case wav.DefaultExtension:
 		return parseWavConfig(r)
-	case convert.Mp3Format:
+	case mp3.DefaultExtension:
 		return parseMp3Config(r)
 	default:
-		return nil, ErrUnsupportedConfig(fmt.Sprintf("Unsupported format: %v", f))
+		return nil, ErrUnsupportedConfig(fmt.Sprintf("Unsupported format: %v", ext))
 	}
 }
 
-func parseWavConfig(r *http.Request) (*convert.WavConfig, error) {
+// Pump parses http request and returns pump.
+func (ConvertForm) Pump(r *http.Request) (pipe.Pump, io.Closer, error) {
+	f, handler, err := r.FormFile("input-file")
+	if err != nil {
+		return nil, nil, fmt.Errorf("Invalid file: %v", err)
+	}
+	switch {
+	case hasExtension(handler.Filename, wav.Extensions):
+		return &wav.Pump{ReadSeeker: f}, f, nil
+	case hasExtension(handler.Filename, mp3.Extensions):
+		return &mp3.Pump{Reader: f}, f, nil
+	default:
+		extErr := fmt.Errorf("File has unsupported extension: %v", handler.Filename)
+		if err = f.Close(); err != nil {
+			return nil, nil, fmt.Errorf("%s \nFailed close form file: %v", extErr, err)
+		}
+		return nil, nil, extErr
+	}
+}
+
+// Source is the input for convertation.
+type Source interface {
+	io.Reader
+	io.Seeker
+	io.Closer
+}
+
+type extensionsFunc func() []string
+
+func hasExtension(fileName string, fn extensionsFunc) bool {
+	for _, ext := range fn() {
+		if strings.HasSuffix(strings.ToLower(fileName), ext) {
+			return true
+		}
+	}
+	return false
+}
+
+func parseWavConfig(r *http.Request) (*wav.SinkBuilder, error) {
 	// try to get bit depth
 	bitDepth, err := parseIntValue(r, "wav-bit-depth", "bit depth")
 	if err != nil {
 		return nil, err
 	}
 
-	return &convert.WavConfig{BitDepth: signal.BitDepth(bitDepth)}, nil
+	return &wav.SinkBuilder{BitDepth: signal.BitDepth(bitDepth)}, nil
 }
 
-func parseMp3Config(r *http.Request) (*convert.Mp3Config, error) {
+func parseMp3Config(r *http.Request) (*mp3.SinkBuilder, error) {
 	// try to get bit rate mode
 	bitRateMode, err := parseIntValue(r, "mp3-bit-rate-mode", "bit rate mode")
 	if err != nil {
@@ -139,10 +190,10 @@ func parseMp3Config(r *http.Request) (*convert.Mp3Config, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &convert.Mp3Config{
+		return &mp3.SinkBuilder{
 			BitRateMode: mp3.VBR,
 			ChannelMode: mp3.ChannelMode(channelMode),
-			VBRQuality:  mp3.VBRQuality(vbrQuality),
+			VBRQuality:  vbrQuality,
 		}, nil
 	}
 
@@ -151,7 +202,7 @@ func parseMp3Config(r *http.Request) (*convert.Mp3Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &convert.Mp3Config{
+	return &mp3.SinkBuilder{
 		BitRateMode: mp3.BitRateMode(bitRateMode),
 		ChannelMode: mp3.ChannelMode(channelMode),
 		BitRate:     bitRate,
@@ -172,6 +223,8 @@ func parseIntValue(r *http.Request, key, name string) (int, error) {
 	}
 	return val, nil
 }
+
+// func outFormats() map[string]string {}
 
 const convertHTML = `
 <html>
@@ -258,9 +311,9 @@ const convertHTML = `
     </div>
     <div id="output-format" style="display:none">
         output 
-        {{range $key := .OutFormats}}
-            <input type="radio" id="{{ $key }}" value="{{ $key }}" name="format" class="output-formats" onclick="onOutputFormatsClick(this)">
-            <label for="{{ $key }}">{{ $key }}</label>
+        {{range $key, $value := .OutFormats}}
+            <input type="radio" id="{{ $value }}" value="{{ $key }}" name="format" class="output-formats" onclick="onOutputFormatsClick(this)">
+            <label for="{{ $value }}">{{ $value }}</label>
         {{end}}
     <br>
     </div>
@@ -269,7 +322,7 @@ const convertHTML = `
         <select name="wav-bit-depth">
             <option hidden disabled selected value>select</option>
             {{range $key, $value := .WavOptions.BitDepths}}
-                <option value="{{ $key }}">{{ $value }}</option>
+                <option value="{{ printf "%d" $key }}">{{ $key }}</option>
             {{end}}
         </select>
     <br>
@@ -279,7 +332,7 @@ const convertHTML = `
         <select name="mp3-channel-mode">
             <option hidden disabled selected value>select</option>
             {{range $key, $value := .Mp3Options.ChannelModes}}
-                <option value="{{ $key }}">{{ $value }}</option>
+                <option value="{{ $key }}">{{ $key }}</option>
             {{end}}
         </select>
         <br>
@@ -287,7 +340,7 @@ const convertHTML = `
         <select id="mp3-bit-rate-mode" name="mp3-bit-rate-mode" onchange="onMp3BitRateModeChange(this)">
             <option hidden disabled selected value>select</option>
             {{range $key, $value := .Mp3Options.BitRateModes}}
-                <option id="{{ $value }}" value="{{ printf "%d" $key }}">{{ $value }}</option>
+                <option id="{{ $key }}" value="{{ printf "%d" $key }}">{{ $key }}</option>
             {{end}}
         </select>
         <br>
@@ -296,14 +349,14 @@ const convertHTML = `
             <input type="text" name="mp3-bit-rate" maxlength="3" size="3">
         </div> 
         <div class="mp3-bit-rate-mode-options mp3-{{ .Mp3Options.VBR }}-options" style="display:none">
-            vbr quality [0-10]
-            <input type="text" name="mp3-vbr-quality" maxlength="2" size="3">
+            vbr quality [0-9]
+            <input type="text" name="mp3-vbr-quality" maxlength="1" size="3">
         </div>
         <div id="mp3-quality">
             <input type="checkbox" id="mp3-use-quality" name="mp3-use-quality" value="true" onchange="onMp3UseQUalityChange(this)">quality
             <div id="mp3-quality-value" style="display:inline;visibility:hidden">
-                [0-10]
-                <input type="text" name="mp3-quality" maxlength="2" size="3">
+                [0-9]
+                <input type="text" name="mp3-quality" maxlength="1" size="3">
             </div>
             <br>  
         </div>

@@ -12,3 +12,10 @@ require (
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.3 // indirect
 )
+
+replace (
+	github.com/pipelined/mp3 => ../mp3
+	github.com/pipelined/pipe => ../pipe
+	github.com/pipelined/signal => ../signal
+	github.com/pipelined/wav => ../wav
+)

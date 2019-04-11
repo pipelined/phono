@@ -10,12 +10,12 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/pipelined/mp3"
 	"github.com/pipelined/phono/cmd"
 	"github.com/pipelined/phono/handler"
 	"github.com/pipelined/phono/template"
+	"github.com/pipelined/wav"
 	"github.com/spf13/cobra"
-
-	"github.com/pipelined/phono/convert"
 )
 
 const (
@@ -70,13 +70,13 @@ func serve() {
 	}()
 
 	// max sizes for different input formats.
-	maxSizes := map[convert.Format]int64{
-		convert.WavFormat: wavMaxSize,
-		convert.Mp3Format: mp3MaxSize,
+	maxSizes := map[string]int64{
+		wav.DefaultExtension[1:]: wavMaxSize,
+		mp3.DefaultExtension[1:]: mp3MaxSize,
 	}
 
 	// setting router rule
-	http.Handle("/", handler.Convert(template.ConvertForm, maxSizes, dir))
+	http.Handle("/", handler.Convert(template.ConvertForm{}, maxSizes, dir))
 	if err := server.ListenAndServe(); err != http.ErrServerClosed {
 		log.Printf("HTTP server ListenAndServe error: %v", err)
 	}

@@ -43,7 +43,7 @@ var (
 )
 
 func main() {
-	convertHTTPCmd.Flags().IntVar(&convertHTTPPort, "port", 8081, "Start convert http handler")
+	convertHTTPCmd.Flags().IntVar(&convertHTTPPort, "port", 8080, "Start convert http handler")
 	convertCmd.AddCommand(convertHTTPCmd)
 	cmd.Root.AddCommand(convertCmd)
 	cmd.Execute()

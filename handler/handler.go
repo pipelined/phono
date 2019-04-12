@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/pipelined/mp3"
 	"github.com/pipelined/phono/convert"
@@ -44,7 +43,7 @@ func Convert(convertForm template.ConvertForm, maxSizes map[string]int64, tmpPat
 			}
 
 			// obtain file handler
-			pump, closer, err := convertForm.Pump(r)
+			pump, closer, err := convertForm.ParsePump(r)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
@@ -52,14 +51,14 @@ func Convert(convertForm template.ConvertForm, maxSizes map[string]int64, tmpPat
 			defer closer.Close()
 
 			// parse output config
-			outConfig, err := convertForm.Parse(r)
+			sinkBuilder, ext, err := convertForm.ParseOutput(r)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 
 			// create temp file
-			tmpFile, err := createTmpFile(outConfig, tmpPath)
+			tmpFile, err := createTmpFile(sinkBuilder, tmpPath)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Error creating temp file: %v", err), http.StatusInternalServerError)
 				return
@@ -67,7 +66,7 @@ func Convert(convertForm template.ConvertForm, maxSizes map[string]int64, tmpPat
 			defer cleanUp(tmpFile)
 
 			// convert file using temp file
-			err = convert.Convert(pump, outConfig)
+			err = convert.Convert(pump, sinkBuilder)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
@@ -87,8 +86,8 @@ func Convert(convertForm template.ConvertForm, maxSizes map[string]int64, tmpPat
 			}
 			fileSize := strconv.FormatInt(stat.Size(), 10)
 			//Send the headers
-			w.Header().Set("Content-Disposition", "attachment; filename="+outFileName("test", inFormat, ".wav"))
-			w.Header().Set("Content-Type", mime.TypeByExtension(".wav"))
+			w.Header().Set("Content-Disposition", "attachment; filename="+outFileName("result", 1, ext))
+			w.Header().Set("Content-Type", mime.TypeByExtension(ext))
 			w.Header().Set("Content-Length", fileSize)
 			io.Copy(w, tmpFile) // send file to a client
 			return
@@ -113,8 +112,8 @@ func createTmpFile(output convert.SinkBuilder, path string) (*os.File, error) {
 }
 
 // outFileName return output file name. It replaces input format extension with output.
-func outFileName(name string, oldExt, newExt string) string {
-	return strings.Replace(strings.ToLower(name), oldExt, newExt, 1)
+func outFileName(prefix string, idx int, ext string) string {
+	return fmt.Sprintf("%v_%d%v", prefix, idx, ext)
 }
 
 // cleanUp removes temporary file and handles all errors on the way.

@@ -31,8 +31,8 @@ func (ConvertForm) Data() []byte {
 	return convertFormData
 }
 
-// Format parses input format from http request.
-func (ConvertForm) Format(r *http.Request) string {
+// Extension parses input etension from http request.
+func (ConvertForm) Extension(r *http.Request) string {
 	return path.Base(r.URL.Path)
 }
 

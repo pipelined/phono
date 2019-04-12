@@ -28,9 +28,9 @@ func Convert(convertForm template.ConvertForm, maxSizes map[string]int64, tmpPat
 			}
 		case http.MethodPost:
 			// extract input format from the path
-			inFormat := convertForm.Format(r)
+			inExt := convertForm.Extension(r)
 			// get max size for the format
-			if maxSize, ok := maxSizes[inFormat]; ok {
+			if maxSize, ok := maxSizes[inExt]; ok {
 				r.Body = http.MaxBytesReader(w, r.Body, maxSize)
 				// check max size
 				if err := r.ParseMultipartForm(maxSize); err != nil {
@@ -38,7 +38,7 @@ func Convert(convertForm template.ConvertForm, maxSizes map[string]int64, tmpPat
 					return
 				}
 			} else {
-				http.Error(w, fmt.Sprintf("Format %s not supported", inFormat), http.StatusBadRequest)
+				http.Error(w, fmt.Sprintf("Format %s not supported", inExt), http.StatusBadRequest)
 				return
 			}
 
@@ -51,7 +51,7 @@ func Convert(convertForm template.ConvertForm, maxSizes map[string]int64, tmpPat
 			defer closer.Close()
 
 			// parse output config
-			sinkBuilder, ext, err := convertForm.ParseOutput(r)
+			sinkBuilder, outExt, err := convertForm.ParseOutput(r)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
@@ -86,8 +86,8 @@ func Convert(convertForm template.ConvertForm, maxSizes map[string]int64, tmpPat
 			}
 			fileSize := strconv.FormatInt(stat.Size(), 10)
 			//Send the headers
-			w.Header().Set("Content-Disposition", "attachment; filename="+outFileName("result", 1, ext))
-			w.Header().Set("Content-Type", mime.TypeByExtension(ext))
+			w.Header().Set("Content-Disposition", "attachment; filename="+outFileName("result", 1, outExt))
+			w.Header().Set("Content-Type", mime.TypeByExtension(outExt))
 			w.Header().Set("Content-Length", fileSize)
 			io.Copy(w, tmpFile) // send file to a client
 			return

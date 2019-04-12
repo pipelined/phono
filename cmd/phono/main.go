@@ -26,24 +26,30 @@ const (
 var (
 	convertCmd = &cobra.Command{
 		Use:   "convert",
-		Short: "audio files",
+		Short: "Convert audio files",
 		Run: func(cmd *cobra.Command, args []string) {
-			if convertHTTP {
-				serve()
-			}
+			cmd.Help()
 		},
 	}
 
-	convertHTTP bool
+	convertHTTPPort int
+	convertHTTPCmd  = &cobra.Command{
+		Use:   "http",
+		Short: "Spin up the http service to convert files",
+		Run: func(cmd *cobra.Command, args []string) {
+			serve(convertHTTPPort)
+		},
+	}
 )
 
 func main() {
-	convertCmd.Flags().BoolVar(&convertHTTP, "http", false, "start convert http handler")
+	convertHTTPCmd.Flags().IntVar(&convertHTTPPort, "port", 8081, "Start convert http handler")
+	convertCmd.AddCommand(convertHTTPCmd)
 	cmd.Root.AddCommand(convertCmd)
 	cmd.Execute()
 }
 
-func serve() {
+func serve(port int) {
 	// temporary directory
 	dir, err := ioutil.TempDir(".", "phono")
 	if err != nil {
@@ -51,7 +57,7 @@ func serve() {
 	}
 
 	interrupt := make(chan struct{})
-	var server http.Server
+	server := http.Server{Addr: fmt.Sprintf(":%d", port)}
 	go func() {
 		sigint := make(chan os.Signal, 1)
 
@@ -64,7 +70,7 @@ func serve() {
 
 		// interrupt signal received, shut down
 		if err := server.Shutdown(context.Background()); err != nil {
-			log.Printf("HTTP server Shutdown: %v", err)
+			log.Printf("HTTP server Shutdown error: %v", err)
 		}
 		close(interrupt)
 	}()
@@ -77,6 +83,7 @@ func serve() {
 
 	// setting router rule
 	http.Handle("/", handler.Convert(template.ConvertForm{}, maxSizes, dir))
+	log.Printf("phono convert at: http://localhost%s\n", server.Addr)
 	if err := server.ListenAndServe(); err != http.ErrServerClosed {
 		log.Printf("HTTP server ListenAndServe error: %v", err)
 	}

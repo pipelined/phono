@@ -11,9 +11,8 @@ type SinkBuilder interface {
 	Build() (pipe.Sink, error)
 }
 
-// Convert provided source of sourceFormat into destination using destinationConfig.
+// Convert using pump as the source and SinkBuilder as destination.
 func Convert(pump pipe.Pump, builder SinkBuilder) error {
-	// create sink for output format
 	sink, err := builder.Build()
 	if err != nil {
 		return fmt.Errorf("Provided configuration is not supported")

@@ -12,3 +12,6 @@
 
 # Golang project vendor packages which should be ignored
 vendor/
+
+# Compiled executable 
+phono

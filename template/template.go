@@ -123,6 +123,9 @@ const convertHTML = `
         .mp3-bit-rate-mode-options{
             display: none;
         }
+        .mp3-quality {
+            display: inline;
+        }
         #output-format {
             display: none;
         }
@@ -133,10 +136,6 @@ const convertHTML = `
             cursor: pointer;
             padding:0!important;
             border-bottom:1px solid #444; 
-        }
-        .mp3-quality {
-            display: inline;
-            // padding-bottom: 10px;
         }
     </style>
     <script type="text/javascript">
@@ -161,9 +160,10 @@ const convertHTML = `
             displayClass('input-file-label', 'inline');
             displayId('output-format', 'inline');
         }
-		function onOutputFormatsClick(el){
-        	displayClass('output-options', 'none');
-        	displayId(el.id+'-options', 'inline');
+		function onOutputFormatChange(el){
+            displayClass('output-options', 'none');
+            // need to cut the dot
+        	displayId(el.value.slice(1)+'-options', 'inline');
         	displayClass('submit', 'block');
         }
         function onMp3BitRateModeChange(el){
@@ -197,11 +197,13 @@ const convertHTML = `
         </div>
         <div class="outputs">
             <div id="output-format">
-                output 
-                {{range $key, $value := .OutFormats}}
-                    <input type="radio" id="{{ $value }}" value="{{ $key }}" name="format" onclick="onOutputFormatsClick(this)">
-                    <label for="{{ $value }}">{{ $value }}</label>
-                {{end}}
+                format 
+                <select name="format" onchange="onOutputFormatChange(this)">
+                    <option hidden disabled selected value>select</option>
+                    {{range $key, $value := .OutFormats}}
+                        <option id="{{ $value }}" value="{{ $key }}">{{ $value }}</option>
+                    {{end}}
+                </select>
             </div>
             <div id="wav-options" class="output-options">
                 bit depth

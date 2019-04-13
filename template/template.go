@@ -96,6 +96,9 @@ const convertHTML = `
         form {
             margin: 0;
         }
+        a {
+            color:inherit;
+        }
         button {
             background:none!important;
             color:inherit;
@@ -125,6 +128,12 @@ const convertHTML = `
         }
         .mp3-quality {
             display: inline;
+        }
+        .footer{
+            position: fixed;
+            padding-top: 15px;
+            padding-bottom: 15px;
+            bottom: 0;
         }
         #output-format {
             display: none;
@@ -249,6 +258,11 @@ const convertHTML = `
         </form>
         <div class="submit" style="display:none">
             <button type="button" onclick="onSubmitClick()">convert</button> 
+        </div>
+        <div class="footer">
+            <div class="container">
+            made with <a href="https://github.com/pipelined/pipe" target="_blank">pipe</a>
+            </div>
         </div>
     </div>
 </body>

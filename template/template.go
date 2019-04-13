@@ -129,6 +129,9 @@ const convertHTML = `
         .mp3-quality {
             display: inline;
         }
+        .option {
+            margin-right: 7px;
+        }
         .footer{
             position: fixed;
             padding-top: 15px;
@@ -205,7 +208,7 @@ const convertHTML = `
             <label id="input-file-label" for="input-file">select file</label>
         </div>
         <div class="outputs">
-            <div id="output-format">
+            <div id="output-format" class="option">
                 format 
                 <select name="format" onchange="onOutputFormatChange(this)">
                     <option hidden disabled selected value>select</option>
@@ -216,7 +219,7 @@ const convertHTML = `
             </div>
             <div id="wav-options" class="output-options">
                 bit depth
-                <select name="wav-bit-depth">
+                <select name="wav-bit-depth" class="option">
                     <option hidden disabled selected value>select</option>
                     {{range $key, $value := .WavOptions.BitDepths}}
                         <option value="{{ printf "%d" $key }}">{{ $key }}</option>
@@ -225,14 +228,14 @@ const convertHTML = `
             </div>
             <div id="mp3-options" class="output-options">
                 channel mode
-                <select name="mp3-channel-mode">
+                <select name="mp3-channel-mode" class="option">
                     <option hidden disabled selected value>select</option>
                     {{range $key, $value := .Mp3Options.ChannelModes}}
                         <option value="{{ printf "%d" $key }}">{{ $key }}</option>
                     {{end}}
                 </select>
                 bit rate mode
-                <select id="mp3-bit-rate-mode" name="mp3-bit-rate-mode" onchange="onMp3BitRateModeChange(this)">
+                <select id="mp3-bit-rate-mode" class="option" name="mp3-bit-rate-mode" onchange="onMp3BitRateModeChange(this)">
                     <option hidden disabled selected value>select</option>
                     {{range $key, $value := .Mp3Options.BitRateModes}}
                         <option id="{{ $key }}" value="{{ printf "%d" $key }}">{{ $key }}</option>
@@ -240,17 +243,17 @@ const convertHTML = `
                 </select>
                 <div class="mp3-bit-rate-mode-options mp3-{{ .Mp3Options.ABR }}-options mp3-{{ .Mp3Options.CBR }}-options">
                     bit rate [8-320]
-                    <input type="text" name="mp3-bit-rate" maxlength="3" size="3">
+                    <input type="text" class="option" name="mp3-bit-rate" maxlength="3" size="3">
                 </div> 
                 <div class="mp3-bit-rate-mode-options mp3-{{ .Mp3Options.VBR }}-options">
                     vbr quality [0-9]
-                    <input type="text" name="mp3-vbr-quality" maxlength="1" size="3">
+                    <input type="text" class="option" name="mp3-vbr-quality" maxlength="1" size="3">
                 </div>
                 <div class="mp3-quality">
                     <input type="checkbox" id="mp3-use-quality" name="mp3-use-quality" value="true" onchange="onMp3UseQUalityChange(this)">quality
                     <div id="mp3-quality-value" class="mp3-quality" style="visibility:hidden">
                         [0-9]
-                        <input type="text" name="mp3-quality" maxlength="1" size="3">
+                        <input type="text" class="option" name="mp3-quality" maxlength="1" size="3">
                     </div> 
                 </div>
             </div>

@@ -89,7 +89,10 @@ func Convert(convertForm template.ConvertForm, maxSizes map[string]int64, tmpPat
 			w.Header().Set("Content-Disposition", "attachment; filename="+outFileName("result", 1, outExt))
 			w.Header().Set("Content-Type", mime.TypeByExtension(outExt))
 			w.Header().Set("Content-Length", fileSize)
-			io.Copy(w, tmpFile) // send file to a client
+			_, err = io.Copy(w, tmpFile) // send file to a client
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Failed to transfer file: %v", err), http.StatusInternalServerError)
+			}
 			return
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)

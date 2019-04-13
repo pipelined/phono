@@ -105,27 +105,52 @@ const convertHTML = `
             border-bottom:1px solid #444; 
             cursor: pointer;
         }
+        .file {
+            margin-bottom: 20px;
+        }
+        .container {
+            width: 1000px;
+            margin-right: auto;
+            margin-left: auto;
+        }
+        .outputs {
+            margin-bottom: 20px;
+            display: block;
+        }
+        .output-options {
+            display: none;
+        }
+        .mp3-bit-rate-mode-options{
+            display: none;
+        }
+        #output-format {
+            display: none;
+        }
+        #input-file {
+            display: none;
+        }
         #input-file-label {
             cursor: pointer;
             padding:0!important;
             border-bottom:1px solid #444; 
         }
-        #mp3-quality {
-            padding-bottom: 10px;
+        .mp3-quality {
+            display: inline;
+            // padding-bottom: 10px;
         }
     </style>
     <script type="text/javascript">
-        document.addEventListener("DOMContentLoaded", function(event) {
-            document.getElementById("convert").reset();
+        document.addEventListener('DOMContentLoaded', function(event) {
+            document.getElementById('convert').reset();
         });
         function getFileName(id) {
             var filePath = document.getElementById(id).value;
             return filePath.substr(filePath.lastIndexOf('\\') + 1);
         }
-        function displayClass(className, display) {
+        function displayClass(className, mode) {
             var elements = document.getElementsByClassName(className);
             for (var i = 0, ii = elements.length; i < ii; i++) {
-                elements[i].style.display = display ? '' : 'none';
+                elements[i].style.display = mode;
             };
         }
         function displayId(id, mode){
@@ -133,18 +158,18 @@ const convertHTML = `
         }
         function onInputFileChange(){
             document.getElementById('input-file-label').innerHTML = getFileName('input-file');
-            displayClass('input-file-label', true);
-            displayId('output-format', "");
+            displayClass('input-file-label', 'inline');
+            displayId('output-format', 'inline');
         }
 		function onOutputFormatsClick(el){
-        	displayClass('output-options', false);
-        	displayId(el.id+'-options', "");
-        	displayId('submit', "");
+        	displayClass('output-options', 'none');
+        	displayId(el.id+'-options', 'inline');
+        	displayClass('submit', 'block');
         }
         function onMp3BitRateModeChange(el){
-        	displayClass('mp3-bit-rate-mode-options', false);
+        	displayClass('mp3-bit-rate-mode-options', 'none');
         	var selectedOptions = 'mp3-'+el.options[el.selectedIndex].id+'-options';
-        	displayClass(selectedOptions, true);
+        	displayClass(selectedOptions, 'inline');
         }
         function onMp3UseQUalityChange(el){
             if (el.checked) {
@@ -163,66 +188,67 @@ const convertHTML = `
     </script> 
 </head>
 <body>
-    <h2>phono convert http</h1>
-    <form id="convert" enctype="multipart/form-data" method="post">
-    <div id="file">
-        <input id="input-file" type="file" name="input-file" accept="{{.Accept}}" style="display:none" onchange="onInputFileChange()"/>
-        <label id="input-file-label" for="input-file">select file</label>
-    </div>
-    <div id="output-format" style="display:none">
-        output 
-        {{range $key, $value := .OutFormats}}
-            <input type="radio" id="{{ $value }}" value="{{ $key }}" name="format" class="output-formats" onclick="onOutputFormatsClick(this)">
-            <label for="{{ $value }}">{{ $value }}</label>
-        {{end}}
-    <br>
-    </div>
-    <div id="wav-options" class="output-options" style="display:none">
-        bit depth
-        <select name="wav-bit-depth">
-            <option hidden disabled selected value>select</option>
-            {{range $key, $value := .WavOptions.BitDepths}}
-                <option value="{{ printf "%d" $key }}">{{ $key }}</option>
-            {{end}}
-        </select>
-    <br>
-    </div>
-    <div id="mp3-options" class="output-options" style="display:none">
-        channel mode
-        <select name="mp3-channel-mode">
-            <option hidden disabled selected value>select</option>
-            {{range $key, $value := .Mp3Options.ChannelModes}}
-                <option value="{{ printf "%d" $key }}">{{ $key }}</option>
-            {{end}}
-        </select>
-        <br>
-        bit rate mode
-        <select id="mp3-bit-rate-mode" name="mp3-bit-rate-mode" onchange="onMp3BitRateModeChange(this)">
-            <option hidden disabled selected value>select</option>
-            {{range $key, $value := .Mp3Options.BitRateModes}}
-                <option id="{{ $key }}" value="{{ printf "%d" $key }}">{{ $key }}</option>
-            {{end}}
-        </select>
-        <br>
-        <div class="mp3-bit-rate-mode-options mp3-{{ .Mp3Options.ABR }}-options mp3-{{ .Mp3Options.CBR }}-options" style="display:none">
-            bit rate [8-320]
-            <input type="text" name="mp3-bit-rate" maxlength="3" size="3">
-        </div> 
-        <div class="mp3-bit-rate-mode-options mp3-{{ .Mp3Options.VBR }}-options" style="display:none">
-            vbr quality [0-9]
-            <input type="text" name="mp3-vbr-quality" maxlength="1" size="3">
+    <div class="container">
+        <h2>phono convert</h1>
+        <form id="convert" enctype="multipart/form-data" method="post">
+        <div class="file">
+            <input id="input-file" type="file" name="input-file" accept="{{.Accept}}" onchange="onInputFileChange()"/>
+            <label id="input-file-label" for="input-file">select file</label>
         </div>
-        <div id="mp3-quality">
-            <input type="checkbox" id="mp3-use-quality" name="mp3-use-quality" value="true" onchange="onMp3UseQUalityChange(this)">quality
-            <div id="mp3-quality-value" style="display:inline;visibility:hidden">
-                [0-9]
-                <input type="text" name="mp3-quality" maxlength="1" size="3">
+        <div class="outputs">
+            <div id="output-format">
+                output 
+                {{range $key, $value := .OutFormats}}
+                    <input type="radio" id="{{ $value }}" value="{{ $key }}" name="format" onclick="onOutputFormatsClick(this)">
+                    <label for="{{ $value }}">{{ $value }}</label>
+                {{end}}
             </div>
-            <br>  
+            <div id="wav-options" class="output-options">
+                bit depth
+                <select name="wav-bit-depth">
+                    <option hidden disabled selected value>select</option>
+                    {{range $key, $value := .WavOptions.BitDepths}}
+                        <option value="{{ printf "%d" $key }}">{{ $key }}</option>
+                    {{end}}
+                </select>
+            </div>
+            <div id="mp3-options" class="output-options">
+                channel mode
+                <select name="mp3-channel-mode">
+                    <option hidden disabled selected value>select</option>
+                    {{range $key, $value := .Mp3Options.ChannelModes}}
+                        <option value="{{ printf "%d" $key }}">{{ $key }}</option>
+                    {{end}}
+                </select>
+                bit rate mode
+                <select id="mp3-bit-rate-mode" name="mp3-bit-rate-mode" onchange="onMp3BitRateModeChange(this)">
+                    <option hidden disabled selected value>select</option>
+                    {{range $key, $value := .Mp3Options.BitRateModes}}
+                        <option id="{{ $key }}" value="{{ printf "%d" $key }}">{{ $key }}</option>
+                    {{end}}
+                </select>
+                <div class="mp3-bit-rate-mode-options mp3-{{ .Mp3Options.ABR }}-options mp3-{{ .Mp3Options.CBR }}-options">
+                    bit rate [8-320]
+                    <input type="text" name="mp3-bit-rate" maxlength="3" size="3">
+                </div> 
+                <div class="mp3-bit-rate-mode-options mp3-{{ .Mp3Options.VBR }}-options">
+                    vbr quality [0-9]
+                    <input type="text" name="mp3-vbr-quality" maxlength="1" size="3">
+                </div>
+                <div class="mp3-quality">
+                    <input type="checkbox" id="mp3-use-quality" name="mp3-use-quality" value="true" onchange="onMp3UseQUalityChange(this)">quality
+                    <div id="mp3-quality-value" class="mp3-quality" style="visibility:hidden">
+                        [0-9]
+                        <input type="text" name="mp3-quality" maxlength="1" size="3">
+                    </div> 
+                </div>
+            </div>
+        </div>
+        </form>
+        <div class="submit" style="display:none">
+            <button type="button" onclick="onSubmitClick()">convert</button> 
         </div>
     </div>
-    </form>
-    <button id="submit" type="button" style="display:none" onclick="onSubmitClick()">convert</button> 
 </body>
 </html>
 `

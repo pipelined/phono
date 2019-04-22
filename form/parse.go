@@ -142,6 +142,22 @@ func parseMp3Sink(r *http.Request) (mp3.Sink, error) {
 		}
 	}
 
+	// try to get mp3 quality
+	useQuality, err := parseBoolValue(r, "mp3-use-quality", "mp3 quality")
+	if err != nil {
+		return nil, err
+	}
+	if useQuality {
+		mp3Quality, err := parseIntValue(r, "mp3-quality", "mp3 quality")
+		if err != nil {
+			return nil, err
+		}
+		if mp3Quality < 0 || mp3Quality > 9 {
+			return nil, fmt.Errorf("MP3 quality %v is not supported", mp3Quality)
+		}
+		s.SetQuality(mp3Quality)
+	}
+
 	return s, nil
 }
 
@@ -156,6 +172,21 @@ func parseIntValue(r *http.Request, key, name string) (int, error) {
 	val, err := strconv.Atoi(str)
 	if err != nil {
 		return 0, ErrUnsupportedConfig(fmt.Sprintf("Failed parsing %s %s: %v", name, str, err))
+	}
+	return val, nil
+}
+
+// parseBoolValue parses value of key provided in the html form.
+// Returns false if value is not provided. Returns error when cannot be parsed as bool.
+func parseBoolValue(r *http.Request, key, name string) (bool, error) {
+	str := r.FormValue(key)
+	if str == "" {
+		return false, nil
+	}
+
+	val, err := strconv.ParseBool(str)
+	if err != nil {
+		return false, ErrUnsupportedConfig(fmt.Sprintf("Failed parsing %s %s: %v", name, str, err))
 	}
 	return val, nil
 }

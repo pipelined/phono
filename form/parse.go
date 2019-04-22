@@ -1,4 +1,4 @@
-package template
+package form
 
 import (
 	"fmt"
@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/pipelined/mp3"
-	"github.com/pipelined/phono/convert"
 	"github.com/pipelined/pipe"
 	"github.com/pipelined/signal"
 	"github.com/pipelined/wav"
@@ -23,21 +22,21 @@ func (e ErrUnsupportedConfig) Error() string {
 	return string(e)
 }
 
-// ConvertForm provides user interaction via http form.
-type ConvertForm struct{}
+// Convert provides user interaction via http form.
+type Convert struct{}
 
 // Data returns serialized form data, ready to be served.
-func (ConvertForm) Data() []byte {
+func (Convert) Data() []byte {
 	return convertFormData
 }
 
-// Extension parses input etension from http request.
-func (ConvertForm) Extension(r *http.Request) string {
-	return path.Base(r.URL.Path)
+// ParseExtension of input file from http request.
+func (Convert) ParseExtension(r *http.Request) string {
+	return fmt.Sprintf(".%s", path.Base(r.URL.Path))
 }
 
 // ParsePump returns pump defined as input for conversion.
-func (ConvertForm) ParsePump(r *http.Request) (pipe.Pump, io.Closer, error) {
+func (Convert) ParsePump(r *http.Request) (pipe.Pump, io.Closer, error) {
 	f, handler, err := r.FormFile("input-file")
 	if err != nil {
 		return nil, nil, fmt.Errorf("Invalid file: %v", err)
@@ -58,35 +57,41 @@ func (ConvertForm) ParsePump(r *http.Request) (pipe.Pump, io.Closer, error) {
 
 // ParseOutput data provided via form.
 // This function should return extensions, sinkbuilder
-func (ConvertForm) ParseOutput(r *http.Request) (sb convert.SinkBuilder, ext string, err error) {
+func (Convert) ParseOutput(r *http.Request) (s pipe.Sink, ext string, err error) {
 	ext = r.FormValue("format")
 	switch ext {
 	case wav.DefaultExtension:
-		sb, err = parseWavConfig(r)
+		s, err = parseWavSink(r)
 		return
 	case mp3.DefaultExtension:
-		sb, err = parseMp3Config(r)
+		s, err = parseMp3Sink(r)
 		return
 	default:
 		return nil, "", ErrUnsupportedConfig(fmt.Sprintf("Unsupported format: %v", ext))
 	}
 }
 
-func parseWavConfig(r *http.Request) (*wav.SinkBuilder, error) {
+func parseWavSink(r *http.Request) (*wav.Sink, error) {
 	// try to get bit depth
 	bitDepth, err := parseIntValue(r, "wav-bit-depth", "bit depth")
 	if err != nil {
 		return nil, err
 	}
+	if _, ok := wav.Supported.BitDepths[signal.BitDepth(bitDepth)]; !ok {
+		return nil, fmt.Errorf("Bit depth %v is not supported", bitDepth)
+	}
 
-	return &wav.SinkBuilder{BitDepth: signal.BitDepth(bitDepth)}, nil
+	return &wav.Sink{BitDepth: signal.BitDepth(bitDepth)}, nil
 }
 
-func parseMp3Config(r *http.Request) (*mp3.SinkBuilder, error) {
+func parseMp3Sink(r *http.Request) (mp3.Sink, error) {
 	// try to get bit rate mode
 	bitRateMode, err := parseIntValue(r, "mp3-bit-rate-mode", "bit rate mode")
 	if err != nil {
 		return nil, err
+	}
+	if _, ok := mp3.Supported.BitRateModes[mp3.BitRateMode(bitRateMode)]; !ok {
+		return nil, fmt.Errorf("Bit rate mode %v is not supported", bitRateMode)
 	}
 
 	// try to get channel mode
@@ -94,30 +99,50 @@ func parseMp3Config(r *http.Request) (*mp3.SinkBuilder, error) {
 	if err != nil {
 		return nil, err
 	}
+	if _, ok := mp3.Supported.ChannelModes[mp3.ChannelMode(channelMode)]; !ok {
+		return nil, fmt.Errorf("Channel mode %v is not supported", channelMode)
+	}
 
-	if mp3.BitRateMode(bitRateMode) == mp3.VBR {
+	var s mp3.Sink
+	switch mp3.BitRateMode(bitRateMode) {
+	case mp3.VBR:
 		// try to get vbr quality
 		vbrQuality, err := parseIntValue(r, "mp3-vbr-quality", "vbr quality")
 		if err != nil {
 			return nil, err
 		}
-		return &mp3.SinkBuilder{
-			BitRateMode: mp3.VBR,
+		if vbrQuality < 0 || vbrQuality > 9 {
+			return nil, fmt.Errorf("VBR quality %v is not supported", vbrQuality)
+		}
+
+		s = &mp3.VBRSink{
 			ChannelMode: mp3.ChannelMode(channelMode),
 			VBRQuality:  vbrQuality,
-		}, nil
+		}
+	default:
+		// try to get bitrate
+		bitRate, err := parseIntValue(r, "mp3-bit-rate", "bit rate")
+		if err != nil {
+			return nil, err
+		}
+		if bitRate > mp3.MaxBitRate || bitRate < mp3.MinBitRate {
+			return nil, fmt.Errorf("Bit rate %v is not supported. Provide value between %d and %d", bitRate, mp3.MinBitRate, mp3.MaxBitRate)
+		}
+
+		if mp3.BitRateMode(bitRateMode) == mp3.CBR {
+			s = &mp3.CBRSink{
+				ChannelMode: mp3.ChannelMode(channelMode),
+				BitRate:     bitRate,
+			}
+		} else {
+			s = &mp3.ABRSink{
+				ChannelMode: mp3.ChannelMode(channelMode),
+				BitRate:     bitRate,
+			}
+		}
 	}
 
-	// try to get bitrate
-	bitRate, err := parseIntValue(r, "mp3-bit-rate", "bit rate")
-	if err != nil {
-		return nil, err
-	}
-	return &mp3.SinkBuilder{
-		BitRateMode: mp3.BitRateMode(bitRateMode),
-		ChannelMode: mp3.ChannelMode(channelMode),
-		BitRate:     bitRate,
-	}, nil
+	return s, nil
 }
 
 // parseIntValue parses value of key provided in the html form.

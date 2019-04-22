@@ -1,24 +1,38 @@
-package handler
+package controller
 
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"mime"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 
 	"github.com/pipelined/mp3"
 	"github.com/pipelined/phono/convert"
-	"github.com/pipelined/phono/template"
+	"github.com/pipelined/pipe"
 	"github.com/pipelined/wav"
-	"github.com/rs/xid"
 )
 
+type ConvertForm interface {
+	Data() []byte
+	ParseExtension(*http.Request) string
+	ParsePump(*http.Request) (pipe.Pump, io.Closer, error)
+	ParseOutput(*http.Request) (pipe.Sink, string, error)
+}
+
 // Convert converts form files to the format provided y form.
-func Convert(convertForm template.ConvertForm, maxSizes map[string]int64, tmpPath string) http.Handler {
+// To limit maximum input file size, pass map of extensions with limits.
+// Process request steps:
+//	1. Retrieve input format from URL
+//	2. Use http.MaxBytesReader to avoid memory abuse
+//	3. Parse output configuration
+//	4. Create temp file
+//	5. Run conversion
+//	6. Send result file
+func Convert(convertForm ConvertForm, limits map[string]int64, tempDir string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -28,9 +42,9 @@ func Convert(convertForm template.ConvertForm, maxSizes map[string]int64, tmpPat
 			}
 		case http.MethodPost:
 			// extract input format from the path
-			inExt := convertForm.Extension(r)
+			inExt := convertForm.ParseExtension(r)
 			// get max size for the format
-			if maxSize, ok := maxSizes[inExt]; ok {
+			if maxSize, ok := limits[inExt]; ok {
 				r.Body = http.MaxBytesReader(w, r.Body, maxSize)
 				// check max size
 				if err := r.ParseMultipartForm(maxSize); err != nil {
@@ -51,22 +65,20 @@ func Convert(convertForm template.ConvertForm, maxSizes map[string]int64, tmpPat
 			defer closer.Close()
 
 			// parse output config
-			sinkBuilder, outExt, err := convertForm.ParseOutput(r)
+			sink, outExt, err := convertForm.ParseOutput(r)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-
-			// create temp file
-			tmpFile, err := createTmpFile(sinkBuilder, tmpPath)
+			tmpFile, err := createTempFile(tempDir, sink)
 			if err != nil {
-				http.Error(w, fmt.Sprintf("Error creating temp file: %v", err), http.StatusInternalServerError)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 			defer cleanUp(tmpFile)
 
 			// convert file using temp file
-			err = convert.Convert(pump, sinkBuilder)
+			err = convert.Convert(pump, sink)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
@@ -100,18 +112,28 @@ func Convert(convertForm template.ConvertForm, maxSizes map[string]int64, tmpPat
 	})
 }
 
-func createTmpFile(output convert.SinkBuilder, path string) (*os.File, error) {
-	f, err := os.Create(filepath.Join(path, xid.New().String()))
-	if err != nil {
-		return nil, err
+func createTempFile(dir string, s pipe.Sink) (f *os.File, err error) {
+	switch v := s.(type) {
+	case *wav.Sink:
+		f, err = ioutil.TempFile(dir, "")
+		v.WriteSeeker = f
+		return
+	case *mp3.ABRSink:
+		f, err = ioutil.TempFile(dir, "")
+		v.Writer = f
+		return
+	case *mp3.CBRSink:
+		f, err = ioutil.TempFile(dir, "")
+		v.Writer = f
+		return
+	case *mp3.VBRSink:
+		f, err = ioutil.TempFile(dir, "")
+		v.Writer = f
+		return
+	default:
+		err = fmt.Errorf("%T sink is not supported", v)
+		return
 	}
-	switch config := output.(type) {
-	case *mp3.SinkBuilder:
-		config.Writer = f
-	case *wav.SinkBuilder:
-		config.WriteSeeker = f
-	}
-	return f, nil
 }
 
 // outFileName return output file name. It replaces input format extension with output.

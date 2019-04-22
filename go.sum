@@ -18,6 +18,8 @@ github.com/mattetti/audio v0.0.0-20180912171649-01576cde1f21 h1:Hc1iKlyxNHp3CV59
 github.com/mattetti/audio v0.0.0-20180912171649-01576cde1f21/go.mod h1:LlQmBGkOuV/SKzEDXBPKauvN2UqCgzXO2XjecTGj40s=
 github.com/pipelined/mock v0.0.0-20190217150724-87db8bf19cf0 h1:fuXR+EClun6PS6seq7qRYal4yM9pLpG2AU1VrSveQzg=
 github.com/pipelined/mock v0.0.0-20190217150724-87db8bf19cf0/go.mod h1:/1j1qKtUhE/iC8c+oM4QGbGAYOlgVji/Ux+XM+3sqes=
+github.com/pipelined/mock v0.0.0-20190416005704-852ac2fd22a9 h1:OKF1OsTU0uv3uL0cbXIfq/6Zaq/w51R56PUEu3acOCY=
+github.com/pipelined/mock v0.0.0-20190416005704-852ac2fd22a9/go.mod h1:+JPzyIiyEUViZdflX90PfJkL52CA1iaGMTRleVKeE8E=
 github.com/pipelined/mp3 v0.0.0-20190328061808-a2441113348b h1:/mvbcOP0QWFTFl32Kha5ahjxnE4KHd0QoUW/LH2F4GE=
 github.com/pipelined/mp3 v0.0.0-20190328061808-a2441113348b/go.mod h1:WV8uutoO8eGdMtX3/RGRUTSNj+n8V576S6f4uY8iwTA=
 github.com/pipelined/pipe v0.4.0 h1:rLosr47z7lQWz1eMZMhAOg7cXLzpV5AKsbBqwHsHEvk=

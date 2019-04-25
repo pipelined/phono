@@ -2,7 +2,6 @@ package form
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"path"
 	"strconv"
@@ -30,28 +29,25 @@ func (Convert) Data() []byte {
 	return convertFormData
 }
 
+// FileKey returns the
+func (Convert) FileKey() string {
+	return fileKey
+}
+
 // ParseExtension of input file from http request.
 func (Convert) ParseExtension(r *http.Request) string {
 	return fmt.Sprintf(".%s", path.Base(r.URL.Path))
 }
 
 // ParsePump returns pump defined as input for conversion.
-func (Convert) ParsePump(r *http.Request) (pipe.Pump, io.Closer, error) {
-	f, handler, err := r.FormFile("input-file")
-	if err != nil {
-		return nil, nil, fmt.Errorf("Invalid file: %v", err)
-	}
+func (Convert) ParsePump(fileName string) (pipe.Pump, error) {
 	switch {
-	case hasExtension(handler.Filename, wav.Extensions):
-		return &wav.Pump{ReadSeeker: f}, f, nil
-	case hasExtension(handler.Filename, mp3.Extensions):
-		return &mp3.Pump{Reader: f}, f, nil
+	case hasExtension(fileName, wav.Extensions):
+		return &wav.Pump{}, nil
+	case hasExtension(fileName, mp3.Extensions):
+		return &mp3.Pump{}, nil
 	default:
-		extErr := fmt.Errorf("File has unsupported extension: %v", handler.Filename)
-		if err = f.Close(); err != nil {
-			return nil, nil, fmt.Errorf("%s \nFailed close form file: %v", extErr, err)
-		}
-		return nil, nil, extErr
+		return nil, fmt.Errorf("File has unsupported extension: %v", fileName)
 	}
 }
 

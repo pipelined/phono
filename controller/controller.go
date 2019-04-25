@@ -18,8 +18,9 @@ import (
 
 type ConvertForm interface {
 	Data() []byte
+	FileKey() string
 	ParseExtension(*http.Request) string
-	ParsePump(*http.Request) (pipe.Pump, io.Closer, error)
+	ParsePump(fileName string) (pipe.Pump, error)
 	ParseOutput(*http.Request) (pipe.Sink, string, error)
 }
 
@@ -56,13 +57,25 @@ func Convert(convertForm ConvertForm, limits map[string]int64, tempDir string) h
 				return
 			}
 
+			// get form file
+			f, handler, err := r.FormFile(convertForm.FileKey())
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Invalid file: %v", err), http.StatusBadRequest)
+				return
+			}
+			defer f.Close()
+
 			// obtain file handler
-			pump, closer, err := convertForm.ParsePump(r)
+			pump, err := convertForm.ParsePump(handler.Filename)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			defer closer.Close()
+
+			if err = assignFormFile(f, pump); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 
 			// parse output config
 			sink, outExt, err := convertForm.ParseOutput(r)
@@ -110,6 +123,18 @@ func Convert(convertForm ConvertForm, limits map[string]int64, tempDir string) h
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	})
+}
+
+func assignFormFile(r io.ReadSeeker, p pipe.Pump) (err error) {
+	switch v := p.(type) {
+	case *wav.Pump:
+		v.ReadSeeker = r
+	case *mp3.Pump:
+		v.Reader = r
+	default:
+		err = fmt.Errorf("%T sink is not supported", v)
+	}
+	return
 }
 
 func createTempFile(dir string, s pipe.Sink) (f *os.File, err error) {

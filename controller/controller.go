@@ -118,15 +118,7 @@ func createTempFile(dir string, s pipe.Sink) (f *os.File, err error) {
 		f, err = ioutil.TempFile(dir, "")
 		v.WriteSeeker = f
 		return
-	case *mp3.ABRSink:
-		f, err = ioutil.TempFile(dir, "")
-		v.Writer = f
-		return
-	case *mp3.CBRSink:
-		f, err = ioutil.TempFile(dir, "")
-		v.Writer = f
-		return
-	case *mp3.VBRSink:
+	case *mp3.Sink:
 		f, err = ioutil.TempFile(dir, "")
 		v.Writer = f
 		return

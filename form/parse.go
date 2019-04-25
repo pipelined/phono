@@ -77,21 +77,20 @@ func parseWavSink(r *http.Request) (*wav.Sink, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, ok := wav.Supported.BitDepths[signal.BitDepth(bitDepth)]; !ok {
+	if err := wav.Supported.BitDepth(signal.BitDepth(bitDepth)); err != nil {
 		return nil, fmt.Errorf("Bit depth %v is not supported", bitDepth)
 	}
 
-	return &wav.Sink{BitDepth: signal.BitDepth(bitDepth)}, nil
+	return &wav.Sink{
+		BitDepth: signal.BitDepth(bitDepth),
+	}, nil
 }
 
-func parseMp3Sink(r *http.Request) (mp3.Sink, error) {
+func parseMp3Sink(r *http.Request) (*mp3.Sink, error) {
 	// try to get bit rate mode
-	bitRateMode, err := parseIntValue(r, "mp3-bit-rate-mode", "bit rate mode")
-	if err != nil {
-		return nil, err
-	}
-	if _, ok := mp3.Supported.BitRateModes[mp3.BitRateMode(bitRateMode)]; !ok {
-		return nil, fmt.Errorf("Bit rate mode %v is not supported", bitRateMode)
+	bitRateModeString := r.FormValue("mp3-bit-rate-mode")
+	if bitRateModeString == "" {
+		return nil, fmt.Errorf("Please provide bit rate mode")
 	}
 
 	// try to get channel mode
@@ -99,13 +98,13 @@ func parseMp3Sink(r *http.Request) (mp3.Sink, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, ok := mp3.Supported.ChannelModes[mp3.ChannelMode(channelMode)]; !ok {
+	if err := mp3.Supported.ChannelMode(mp3.ChannelMode(channelMode)); err != nil {
 		return nil, fmt.Errorf("Channel mode %v is not supported", channelMode)
 	}
 
-	var s mp3.Sink
-	switch mp3.BitRateMode(bitRateMode) {
-	case mp3.VBR:
+	var bitRateMode mp3.BitRateMode
+	switch bitRateModeString {
+	case mp3.VBR{}.String():
 		// try to get vbr quality
 		vbrQuality, err := parseIntValue(r, "mp3-vbr-quality", "vbr quality")
 		if err != nil {
@@ -115,9 +114,8 @@ func parseMp3Sink(r *http.Request) (mp3.Sink, error) {
 			return nil, fmt.Errorf("VBR quality %v is not supported", vbrQuality)
 		}
 
-		s = &mp3.VBRSink{
-			ChannelMode: mp3.ChannelMode(channelMode),
-			VBRQuality:  vbrQuality,
+		bitRateMode = mp3.VBR{
+			Quality: vbrQuality,
 		}
 	default:
 		// try to get bitrate
@@ -129,17 +127,20 @@ func parseMp3Sink(r *http.Request) (mp3.Sink, error) {
 			return nil, fmt.Errorf("Bit rate %v is not supported. Provide value between %d and %d", bitRate, mp3.MinBitRate, mp3.MaxBitRate)
 		}
 
-		if mp3.BitRateMode(bitRateMode) == mp3.CBR {
-			s = &mp3.CBRSink{
-				ChannelMode: mp3.ChannelMode(channelMode),
-				BitRate:     bitRate,
+		if bitRateModeString == (mp3.CBR{}.String()) {
+			bitRateMode = mp3.CBR{
+				BitRate: bitRate,
 			}
 		} else {
-			s = &mp3.ABRSink{
-				ChannelMode: mp3.ChannelMode(channelMode),
-				BitRate:     bitRate,
+			bitRateMode = mp3.ABR{
+				BitRate: bitRate,
 			}
 		}
+	}
+
+	s := mp3.Sink{
+		BitRateMode: bitRateMode,
+		ChannelMode: mp3.ChannelMode(channelMode),
 	}
 
 	// try to get mp3 quality
@@ -158,7 +159,7 @@ func parseMp3Sink(r *http.Request) (mp3.Sink, error) {
 		s.SetQuality(mp3Quality)
 	}
 
-	return s, nil
+	return &s, nil
 }
 
 // parseIntValue parses value of key provided in the html form.

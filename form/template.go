@@ -47,14 +47,18 @@ func init() {
 		Accept:     accept(mp3.Extensions, wav.Extensions),
 		OutFormats: outFormats(mp3.DefaultExtension, wav.DefaultExtension),
 		WavOptions: wavOptions{
-			BitDepths: wav.Supported.BitDepths,
+			BitDepths: wav.Supported.BitDepths(),
 		},
 		Mp3Options: mp3Options{
-			VBR:          mp3.VBR,
-			ABR:          mp3.ABR,
-			CBR:          mp3.CBR,
-			BitRateModes: mp3.Supported.BitRateModes,
-			ChannelModes: mp3.Supported.ChannelModes,
+			VBR: mp3.VBR{},
+			ABR: mp3.ABR{},
+			CBR: mp3.CBR{},
+			BitRateModes: map[mp3.BitRateMode]struct{}{
+				mp3.VBR{}: {},
+				mp3.CBR{}: {},
+				mp3.ABR{}: {},
+			},
+			ChannelModes: mp3.Supported.ChannelModes(),
 		},
 	}
 	var b bytes.Buffer

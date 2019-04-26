@@ -14,13 +14,6 @@ import (
 	"github.com/pipelined/phono/input"
 )
 
-type ConvertForm interface {
-	Data() []byte
-	InputExtension(*http.Request) string
-	ParsePump(r *http.Request) (input.Pump, io.Closer, error)
-	ParseSink(r *http.Request) (input.Sink, error)
-}
-
 // Convert converts form files to the format provided y form.
 // To limit maximum input file size, pass map of extensions with limits.
 // Process request steps:
@@ -30,17 +23,17 @@ type ConvertForm interface {
 //	4. Create temp file
 //	5. Run conversion
 //	6. Send result file
-func Convert(convertForm ConvertForm, limits map[string]int64, tempDir string) http.Handler {
+func Convert(form input.ConvertForm, limits map[string]int64, tempDir string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
-			_, err := w.Write(convertForm.Data())
+			_, err := w.Write(form.Data())
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 		case http.MethodPost:
 			// extract input format from the path
-			inExt := convertForm.InputExtension(r)
+			inExt := form.InputExtension(r)
 			// get max size for the format
 			if maxSize, ok := limits[inExt]; ok {
 				r.Body = http.MaxBytesReader(w, r.Body, maxSize)
@@ -54,7 +47,7 @@ func Convert(convertForm ConvertForm, limits map[string]int64, tempDir string) h
 				return
 			}
 			// parse pump
-			pump, closer, err := convertForm.ParsePump(r)
+			pump, closer, err := form.ParsePump(r)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
@@ -62,7 +55,7 @@ func Convert(convertForm ConvertForm, limits map[string]int64, tempDir string) h
 			defer closer.Close()
 
 			// parse sink
-			sink, err := convertForm.ParseSink(r)
+			sink, err := form.ParseSink(r)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return

@@ -3,6 +3,7 @@ package input
 
 import (
 	"io"
+	"net/http"
 
 	"github.com/pipelined/mp3"
 	"github.com/pipelined/pipe"
@@ -20,6 +21,21 @@ type (
 	Sink struct {
 		Mp3 *mp3.Sink
 		Wav *wav.Sink
+	}
+
+	// FormFile is the html form file.
+	FormFile interface {
+		io.Reader
+		io.Seeker
+		io.Closer
+	}
+
+	// ConvertForm provides html form to the user. The form contains all information needed for conversion.
+	ConvertForm interface {
+		Data() []byte
+		InputExtension(*http.Request) string
+		ParsePump(*http.Request) (Pump, io.Closer, error)
+		ParseSink(*http.Request) (Sink, error)
 	}
 )
 

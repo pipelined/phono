@@ -13,9 +13,9 @@ import (
 	"github.com/pipelined/mp3"
 	"github.com/pipelined/phono/cmd"
 	"github.com/pipelined/phono/controller"
-	"github.com/pipelined/phono/form"
-
+	"github.com/pipelined/phono/input/form"
 	"github.com/pipelined/wav"
+
 	"github.com/spf13/cobra"
 )
 

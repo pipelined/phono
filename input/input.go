@@ -23,13 +23,6 @@ type (
 		Wav *wav.Sink
 	}
 
-	// FormFile is the html form file.
-	FormFile interface {
-		io.Reader
-		io.Seeker
-		io.Closer
-	}
-
 	// ConvertForm provides html form to the user. The form contains all information needed for conversion.
 	ConvertForm interface {
 		Data() []byte

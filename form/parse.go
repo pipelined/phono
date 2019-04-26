@@ -2,13 +2,14 @@ package form
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"path"
 	"strconv"
 	"strings"
 
 	"github.com/pipelined/mp3"
-	"github.com/pipelined/pipe"
+	"github.com/pipelined/phono/input"
 	"github.com/pipelined/signal"
 	"github.com/pipelined/wav"
 )
@@ -34,36 +35,44 @@ func (Convert) FileKey() string {
 	return fileKey
 }
 
-// ParseExtension of input file from http request.
-func (Convert) ParseExtension(r *http.Request) string {
+// InputExtension of file from http request.
+func (Convert) InputExtension(r *http.Request) string {
 	return fmt.Sprintf(".%s", path.Base(r.URL.Path))
 }
 
 // ParsePump returns pump defined as input for conversion.
-func (Convert) ParsePump(fileName string) (pipe.Pump, error) {
+func (Convert) ParsePump(r *http.Request) (input.Pump, io.Closer, error) {
+	f, handler, err := r.FormFile(fileKey)
+	if err != nil {
+		return input.Pump{}, nil, fmt.Errorf("Invalid file: %v", err)
+	}
 	switch {
-	case hasExtension(fileName, wav.Extensions):
-		return &wav.Pump{}, nil
-	case hasExtension(fileName, mp3.Extensions):
-		return &mp3.Pump{}, nil
+	case hasExtension(handler.Filename, wav.Extensions):
+		return input.Pump{
+			Wav: &wav.Pump{ReadSeeker: f},
+		}, f, nil
+	case hasExtension(handler.Filename, mp3.Extensions):
+		return input.Pump{
+			Mp3: &mp3.Pump{Reader: f},
+		}, f, nil
 	default:
-		return nil, fmt.Errorf("File has unsupported extension: %v", fileName)
+		return input.Pump{}, nil, fmt.Errorf("File has unsupported extension: %v", handler.Filename)
 	}
 }
 
-// ParseOutput data provided via form.
+// ParseSink provided via form.
 // This function should return extensions, sinkbuilder
-func (Convert) ParseOutput(r *http.Request) (s pipe.Sink, ext string, err error) {
-	ext = r.FormValue("format")
+func (Convert) ParseSink(r *http.Request) (input.Sink, error) {
+	ext := r.FormValue("format")
 	switch ext {
 	case wav.DefaultExtension:
-		s, err = parseWavSink(r)
-		return
+		s, err := parseWavSink(r)
+		return input.Sink{Wav: s}, err
 	case mp3.DefaultExtension:
-		s, err = parseMp3Sink(r)
-		return
+		s, err := parseMp3Sink(r)
+		return input.Sink{Mp3: s}, err
 	default:
-		return nil, "", ErrUnsupportedConfig(fmt.Sprintf("Unsupported format: %v", ext))
+		return input.Sink{}, ErrUnsupportedConfig(fmt.Sprintf("Unsupported format: %v", ext))
 	}
 }
 

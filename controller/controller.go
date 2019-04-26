@@ -10,18 +10,15 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/pipelined/mp3"
 	"github.com/pipelined/phono/convert"
-	"github.com/pipelined/pipe"
-	"github.com/pipelined/wav"
+	"github.com/pipelined/phono/input"
 )
 
 type ConvertForm interface {
 	Data() []byte
-	FileKey() string
-	ParseExtension(*http.Request) string
-	ParsePump(fileName string) (pipe.Pump, error)
-	ParseOutput(*http.Request) (pipe.Sink, string, error)
+	InputExtension(*http.Request) string
+	ParsePump(r *http.Request) (input.Pump, io.Closer, error)
+	ParseSink(r *http.Request) (input.Sink, error)
 }
 
 // Convert converts form files to the format provided y form.
@@ -43,7 +40,7 @@ func Convert(convertForm ConvertForm, limits map[string]int64, tempDir string) h
 			}
 		case http.MethodPost:
 			// extract input format from the path
-			inExt := convertForm.ParseExtension(r)
+			inExt := convertForm.InputExtension(r)
 			// get max size for the format
 			if maxSize, ok := limits[inExt]; ok {
 				r.Body = http.MaxBytesReader(w, r.Body, maxSize)
@@ -56,65 +53,57 @@ func Convert(convertForm ConvertForm, limits map[string]int64, tempDir string) h
 				http.Error(w, fmt.Sprintf("Format %s not supported", inExt), http.StatusBadRequest)
 				return
 			}
-
-			// get form file
-			f, handler, err := r.FormFile(convertForm.FileKey())
-			if err != nil {
-				http.Error(w, fmt.Sprintf("Invalid file: %v", err), http.StatusBadRequest)
-				return
-			}
-			defer f.Close()
-
-			// obtain file handler
-			pump, err := convertForm.ParsePump(handler.Filename)
+			// parse pump
+			pump, closer, err := convertForm.ParsePump(r)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
+			defer closer.Close()
 
-			if err = assignFormFile(f, pump); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
-
-			// parse output config
-			sink, outExt, err := convertForm.ParseOutput(r)
+			// parse sink
+			sink, err := convertForm.ParseSink(r)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			tmpFile, err := createTempFile(tempDir, sink)
+
+			// create temp file
+			tempFile, err := ioutil.TempFile(tempDir, "")
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			defer cleanUp(tmpFile)
+			defer cleanUp(tempFile)
+
+			// set temp file to sink
+			sink.SetOutput(tempFile)
 
 			// convert file using temp file
-			err = convert.Convert(pump, sink)
+			err = convert.Convert(pump.Pump(), sink.Sink())
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 
 			// reset temp file
-			_, err = tmpFile.Seek(0, 0)
+			_, err = tempFile.Seek(0, 0)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Failed to reset temp file: %v", err), http.StatusInternalServerError)
 				return
 			}
 			// get temp file stats for headers
-			stat, err := tmpFile.Stat()
+			stat, err := tempFile.Stat()
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Failed to get file stats: %v", err), http.StatusInternalServerError)
 				return
 			}
 			fileSize := strconv.FormatInt(stat.Size(), 10)
 			//Send the headers
-			w.Header().Set("Content-Disposition", "attachment; filename="+outFileName("result", 1, outExt))
-			w.Header().Set("Content-Type", mime.TypeByExtension(outExt))
+			w.Header().Set("Content-Disposition", "attachment; filename="+outFileName("result", 1, sink.Extension()))
+			w.Header().Set("Content-Type", mime.TypeByExtension(sink.Extension()))
 			w.Header().Set("Content-Length", fileSize)
-			_, err = io.Copy(w, tmpFile) // send file to a client
+			_, err = io.Copy(w, tempFile) // send file to a client
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Failed to transfer file: %v", err), http.StatusInternalServerError)
 			}
@@ -123,34 +112,6 @@ func Convert(convertForm ConvertForm, limits map[string]int64, tempDir string) h
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	})
-}
-
-func assignFormFile(r io.ReadSeeker, p pipe.Pump) (err error) {
-	switch v := p.(type) {
-	case *wav.Pump:
-		v.ReadSeeker = r
-	case *mp3.Pump:
-		v.Reader = r
-	default:
-		err = fmt.Errorf("%T sink is not supported", v)
-	}
-	return
-}
-
-func createTempFile(dir string, s pipe.Sink) (f *os.File, err error) {
-	switch v := s.(type) {
-	case *wav.Sink:
-		f, err = ioutil.TempFile(dir, "")
-		v.WriteSeeker = f
-		return
-	case *mp3.Sink:
-		f, err = ioutil.TempFile(dir, "")
-		v.Writer = f
-		return
-	default:
-		err = fmt.Errorf("%T sink is not supported", v)
-		return
-	}
 }
 
 // outFileName return output file name. It replaces input format extension with output.

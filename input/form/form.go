@@ -27,11 +27,10 @@ type wavOptions struct {
 
 // mp3Options is a struct of mp3 format options that are available for conversion.
 type mp3Options struct {
-	VBR           mp3.BitRateMode
-	ABR           mp3.BitRateMode
-	CBR           mp3.BitRateMode
-	BitRateModes  map[mp3.BitRateMode]struct{}
 	ChannelModes  map[mp3.ChannelMode]struct{}
+	VBR           string
+	ABR           string
+	CBR           string
 	DefineQuality bool
 }
 
@@ -42,6 +41,12 @@ const (
 var (
 	// ConvertFormData is the serialized convert form with values.
 	convertFormBytes []byte
+	mp3opts          = mp3Options{
+		VBR:          "VBR",
+		ABR:          "ABR",
+		CBR:          "CBR",
+		ChannelModes: mp3.Supported.ChannelModes(),
+	}
 )
 
 // init generates serialized convert form data which is then used during runtime.
@@ -53,17 +58,7 @@ func init() {
 		WavOptions: wavOptions{
 			BitDepths: wav.Supported.BitDepths(),
 		},
-		Mp3Options: mp3Options{
-			VBR: mp3.VBR{},
-			ABR: mp3.ABR{},
-			CBR: mp3.CBR{},
-			BitRateModes: map[mp3.BitRateMode]struct{}{
-				mp3.VBR{}: {},
-				mp3.CBR{}: {},
-				mp3.ABR{}: {},
-			},
-			ChannelModes: mp3.Supported.ChannelModes(),
-		},
+		Mp3Options: mp3opts,
 	}
 	var b bytes.Buffer
 	if err := template.Must(template.New("convert").Parse(convertHTML)).Execute(&b, data); err != nil {
@@ -245,9 +240,9 @@ const convertHTML = `
                 bit rate mode
                 <select id="mp3-bit-rate-mode" class="option" name="mp3-bit-rate-mode" onchange="onMp3BitRateModeChange(this)">
                     <option hidden disabled selected value>select</option>
-                    {{range $key, $value := .Mp3Options.BitRateModes}}
-                        <option id="{{ $key }}" value="{{ printf "%d" $key }}">{{ $key }}</option>
-                    {{end}}
+                    <option id="{{ .Mp3Options.VBR  }}" value="{{ .Mp3Options.VBR }}">{{ .Mp3Options.VBR }}</option>
+                    <option id="{{ .Mp3Options.CBR  }}" value="{{ .Mp3Options.CBR }}">{{ .Mp3Options.CBR }}</option>
+                    <option id="{{ .Mp3Options.ABR  }}" value="{{ .Mp3Options.ABR }}">{{ .Mp3Options.ABR }}</option>
                 </select>
                 <div class="mp3-bit-rate-mode-options mp3-{{ .Mp3Options.ABR }}-options mp3-{{ .Mp3Options.CBR }}-options">
                     bit rate [8-320]

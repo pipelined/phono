@@ -12,7 +12,7 @@ import (
 )
 
 // convertData provides a data for convert form, so user can define conversion parameters.
-type convertData struct {
+type convertFormData struct {
 	Accept     string
 	FileKey    string
 	OutFormats map[string]string
@@ -41,14 +41,12 @@ const (
 
 var (
 	// ConvertFormData is the serialized convert form with values.
-	convertFormData []byte
+	convertFormBytes []byte
 )
 
 // init generates serialized convert form data which is then used during runtime.
 func init() {
-	convertTemplate := template.Must(template.New("convert").Parse(convertHTML))
-
-	convertFormValues := convertData{
+	data := convertFormData{
 		Accept:     accept(mp3.Extensions, wav.Extensions),
 		FileKey:    fileKey,
 		OutFormats: outFormats(mp3.DefaultExtension, wav.DefaultExtension),
@@ -68,10 +66,10 @@ func init() {
 		},
 	}
 	var b bytes.Buffer
-	if err := convertTemplate.Execute(&b, convertFormValues); err != nil {
+	if err := template.Must(template.New("convert").Parse(convertHTML)).Execute(&b, data); err != nil {
 		panic(fmt.Sprintf("Failed to parse convert template: %v", err))
 	}
-	convertFormData = b.Bytes()
+	convertFormBytes = b.Bytes()
 }
 
 // accept generates string for accept html form attribute.

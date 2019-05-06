@@ -27,7 +27,7 @@ type Convert struct{}
 
 // Data returns serialized form data, ready to be served.
 func (Convert) Data() []byte {
-	return convertFormData
+	return convertFormBytes
 }
 
 // FileKey returns the

@@ -30,11 +30,6 @@ func (Convert) Data() []byte {
 	return convertFormBytes
 }
 
-// FileKey returns the
-func (Convert) FileKey() string {
-	return fileKey
-}
-
 // InputExtension of file from http request.
 func (Convert) InputExtension(r *http.Request) string {
 	return fmt.Sprintf(".%s", path.Base(r.URL.Path))

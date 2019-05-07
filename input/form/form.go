@@ -14,7 +14,6 @@ import (
 // convertData provides a data for convert form, so user can define conversion parameters.
 type convertFormData struct {
 	Accept     string
-	FileKey    string
 	OutFormats map[string]string
 	WavOptions wavOptions
 	Mp3Options mp3Options
@@ -53,7 +52,6 @@ var (
 func init() {
 	data := convertFormData{
 		Accept:     accept(mp3.Extensions, wav.Extensions),
-		FileKey:    fileKey,
 		OutFormats: outFormats(mp3.DefaultExtension, wav.DefaultExtension),
 		WavOptions: wavOptions{
 			BitDepths: wav.Supported.BitDepths(),
@@ -207,7 +205,7 @@ const convertHTML = `
         <h2>phono convert</h1>
         <form id="convert" enctype="multipart/form-data" method="post">
         <div class="file">
-            <input id="input-file" type="file" name="{{.FileKey}}" accept="{{.Accept}}" onchange="onInputFileChange()"/>
+            <input id="input-file" type="file" name="input-file" accept="{{.Accept}}" onchange="onInputFileChange()"/>
             <label id="input-file-label" for="input-file">select file</label>
         </div>
         <div class="outputs">

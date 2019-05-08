@@ -10,8 +10,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/pipelined/phono/convert"
 	"github.com/pipelined/phono/input"
+	"github.com/pipelined/pipe"
 )
 
 // Convert converts form files to the format provided y form.
@@ -73,7 +73,7 @@ func Convert(form input.ConvertForm, limits map[string]int64, tempDir string) ht
 			sink.SetOutput(tempFile)
 
 			// convert file using temp file
-			err = convert.Convert(pump.Pump(), sink.Sink())
+			err = convert(pump.Pump(), sink.Sink())
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
@@ -105,6 +105,22 @@ func Convert(form input.ConvertForm, limits map[string]int64, tempDir string) ht
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	})
+}
+
+// convert using pump as the source and SinkBuilder as destination.
+func convert(pump pipe.Pump, sink pipe.Sink) error {
+	// build convert pipe
+	convert, err := pipe.New(1024, pipe.WithPump(pump), pipe.WithSinks(sink))
+	if err != nil {
+		return fmt.Errorf("Failed to build pipe: %v", err)
+	}
+
+	// run conversion
+	err = pipe.Wait(convert.Run())
+	if err != nil {
+		return fmt.Errorf("Failed to execute pipe: %v", err)
+	}
+	return nil
 }
 
 // outFileName return output file name. It replaces input format extension with output.

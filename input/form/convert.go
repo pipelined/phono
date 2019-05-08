@@ -3,6 +3,7 @@ package form
 import (
 	"bytes"
 	"fmt"
+	"mime"
 	"strings"
 	"text/template"
 
@@ -15,6 +16,9 @@ import (
 type convertFormData struct {
 	Accept     string
 	OutFormats map[string]string
+	Limits     map[string]int64
+	WavMime    string
+	Mp3Mime    string
 	WavOptions wavOptions
 	Mp3Options mp3Options
 }
@@ -51,6 +55,8 @@ var (
 // init generates serialized convert form data which is then used during runtime.
 func init() {
 	data := convertFormData{
+		WavMime:    mime.TypeByExtension(wav.DefaultExtension),
+		Mp3Mime:    mime.TypeByExtension(mp3.DefaultExtension),
 		Accept:     accept(mp3.Extensions, wav.Extensions),
 		OutFormats: outFormats(mp3.DefaultExtension, wav.DefaultExtension),
 		WavOptions: wavOptions{
@@ -76,7 +82,7 @@ func accept(extFns ...extensionsFunc) string {
 	return str.String()
 }
 
-// outFormats returns map of extensions without dots.
+// outFormats maps the extensions with values without dots.
 func outFormats(exts ...string) map[string]string {
 	m := make(map[string]string)
 	for _, ext := range exts {
@@ -139,7 +145,7 @@ const convertHTML = `
             padding-bottom: 15px;
             bottom: 0;
         }
-        #output-format {
+        #output-format-block {
             display: none;
         }
         #input-file {
@@ -152,12 +158,17 @@ const convertHTML = `
         }
     </style>
     <script type="text/javascript">
-        document.addEventListener('DOMContentLoaded', function(event) {
-            document.getElementById('convert').reset();
-        });
-        function getFileName(id) {
-            var filePath = document.getElementById(id).value;
+        const fileId = 'input-file';
+        const accept = '{{ .Accept }}';
+        function getFile() {
+            return document.getElementById(fileId);
+        }
+        function getFileName(file) {
+            var filePath = file.value;
             return filePath.substr(filePath.lastIndexOf('\\') + 1);
+        }
+        function getFileExtension(fileName) {
+            return fileName.split('.')[1];
         }
         function displayClass(className, mode) {
             var elements = document.getElementsByClassName(className);
@@ -168,32 +179,53 @@ const convertHTML = `
         function displayId(id, mode){
             document.getElementById(id).style.display = mode;
         }
+
+        document.addEventListener('DOMContentLoaded', function(event) {
+            document.getElementById('convert').reset();
+            // base form handlers
+            document.getElementById('input-file').addEventListener('change', onInputFileChange);
+            document.getElementById('output-format').addEventListener('change', onOutputFormatChange);
+            document.getElementById('submit-button').addEventListener('click', onSubmitClick);
+            // mp3 handlers
+            document.getElementById('mp3-bit-rate-mode').addEventListener('click', onMp3BitRateModeChange);
+            document.getElementById('mp3-use-quality').addEventListener('click', onMp3UseQUalityChange);
+        });
+        
+
         function onInputFileChange(){
-            document.getElementById('input-file-label').innerHTML = getFileName('input-file');
-            displayClass('input-file-label', 'inline');
-            displayId('output-format', 'inline');
+            var file = getFile();
+            var fileName = getFileName(file);
+            document.getElementById('input-file-label').innerHTML = fileName;
+            var ext = getFileExtension(fileName);
+            if (accept.indexOf(ext) > 0) {
+                displayClass('input-file-label', 'inline');
+                displayId('output-format-block', 'inline');
+                var size = file.files[0].size;
+                console.log(file.size);
+            } else {
+                alert('Only files with following extensions are allowed: {{.Accept}}')
+            }
         }
-		function onOutputFormatChange(el){
+		function onOutputFormatChange(){
             displayClass('output-options', 'none');
             // need to cut the dot
-        	displayId(el.value.slice(1)+'-options', 'inline');
+        	displayId(this.value.slice(1)+'-options', 'inline');
         	displayClass('submit', 'block');
         }
-        function onMp3BitRateModeChange(el){
+        function onMp3BitRateModeChange(){
         	displayClass('mp3-bit-rate-mode-options', 'none');
-        	var selectedOptions = 'mp3-'+el.options[el.selectedIndex].id+'-options';
+        	var selectedOptions = 'mp3-'+this.options[this.selectedIndex].id+'-options';
         	displayClass(selectedOptions, 'inline');
         }
-        function onMp3UseQUalityChange(el){
-            if (el.checked) {
-                document.getElementById('mp3-quality-value').style.visibility = "";
+        function onMp3UseQUalityChange(){
+            if (this.checked) {
+                document.getElementById('mp3-quality-value').style.visibility = '';
             } else {
-                document.getElementById('mp3-quality-value').style.visibility = "hidden";
+                document.getElementById('mp3-quality-value').style.visibility = 'hidden';
             }
         }
         function onSubmitClick(){
-            var fileName = getFileName('input-file')
-            var ext = fileName.split('.')[1];
+            var ext = getFileExtension(getFileName(getFile()));
             var convert = document.getElementById('convert');
             convert.action = ext;
             convert.submit();
@@ -205,13 +237,13 @@ const convertHTML = `
         <h2>phono convert</h1>
         <form id="convert" enctype="multipart/form-data" method="post">
         <div class="file">
-            <input id="input-file" type="file" name="input-file" accept="{{.Accept}}" onchange="onInputFileChange()"/>
+            <input id="input-file" type="file" name="input-file" accept="{{.Accept}}"/>
             <label id="input-file-label" for="input-file">select file</label>
         </div>
         <div class="outputs">
-            <div id="output-format" class="option">
+            <div id="output-format-block" class="option">
                 format 
-                <select name="format" onchange="onOutputFormatChange(this)">
+                <select id="output-format" name="format">
                     <option hidden disabled selected value>select</option>
                     {{range $key, $value := .OutFormats}}
                         <option id="{{ $value }}" value="{{ $key }}">{{ $value }}</option>
@@ -236,7 +268,7 @@ const convertHTML = `
                     {{end}}
                 </select>
                 bit rate mode
-                <select id="mp3-bit-rate-mode" class="option" name="mp3-bit-rate-mode" onchange="onMp3BitRateModeChange(this)">
+                <select id="mp3-bit-rate-mode" class="option" name="mp3-bit-rate-mode">
                     <option hidden disabled selected value>select</option>
                     <option id="{{ .Mp3Options.VBR  }}" value="{{ .Mp3Options.VBR }}">{{ .Mp3Options.VBR }}</option>
                     <option id="{{ .Mp3Options.CBR  }}" value="{{ .Mp3Options.CBR }}">{{ .Mp3Options.CBR }}</option>
@@ -251,7 +283,7 @@ const convertHTML = `
                     <input type="text" class="option" name="mp3-vbr-quality" maxlength="1" size="3">
                 </div>
                 <div class="mp3-quality">
-                    <input type="checkbox" id="mp3-use-quality" name="mp3-use-quality" value="true" onchange="onMp3UseQUalityChange(this)">quality
+                    <input type="checkbox" id="mp3-use-quality" name="mp3-use-quality" value="true">quality
                     <div id="mp3-quality-value" class="mp3-quality" style="visibility:hidden">
                         [0-9]
                         <input type="text" class="option" name="mp3-quality" maxlength="1" size="3">
@@ -261,7 +293,7 @@ const convertHTML = `
         </div>
         </form>
         <div class="submit" style="display:none">
-            <button type="button" onclick="onSubmitClick()">convert</button> 
+            <button id="submit-button" type="button">convert</button> 
         </div>
         <div class="footer">
             <div class="container">

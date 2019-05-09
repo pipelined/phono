@@ -7,20 +7,24 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/pipelined/phono/input"
+
 	"github.com/pipelined/mp3"
 	"github.com/pipelined/signal"
 	"github.com/pipelined/wav"
 )
 
 // convertData provides a data for convert form, so user can define conversion parameters.
-type convertFormData struct {
+type convertData struct {
 	Accept     string
 	OutFormats map[string]string
-	Limits     map[string]int64
 	WavMime    string
 	Mp3Mime    string
 	WavOptions wavOptions
 	Mp3Options mp3Options
+	WavMaxSize int64
+	Mp3MaxSize int64
+	MaxSizes   map[string]int64
 }
 
 // wavOptions is a struct of wav format options that are available for conversion.
@@ -43,43 +47,57 @@ const (
 
 var (
 	// ConvertFormData is the serialized convert form with values.
-	convertFormBytes []byte
-	mp3opts          = mp3Options{
+	// convertFormBytes []byte
+	mp3opts = mp3Options{
 		VBR:          "VBR",
 		ABR:          "ABR",
 		CBR:          "CBR",
 		ChannelModes: mp3.Supported.ChannelModes(),
 	}
-)
 
-// init generates serialized convert form data which is then used during runtime.
-func init() {
-	data := convertFormData{
-		WavMime:    mime.TypeByExtension(wav.DefaultExtension),
-		Mp3Mime:    mime.TypeByExtension(mp3.DefaultExtension),
-		Accept:     accept(mp3.Extensions, wav.Extensions),
-		OutFormats: outFormats(mp3.DefaultExtension, wav.DefaultExtension),
+	convertForm = convertData{
+		WavMime:    mime.TypeByExtension(input.DefaultExtension.Wav),
+		Mp3Mime:    mime.TypeByExtension(input.DefaultExtension.Mp3),
+		Accept:     strings.Join(append(input.Extensions.Wav, input.Extensions.Mp3...), ", "),
+		OutFormats: outFormats(input.DefaultExtension.Wav, input.DefaultExtension.Mp3),
 		WavOptions: wavOptions{
 			BitDepths: wav.Supported.BitDepths(),
 		},
 		Mp3Options: mp3opts,
 	}
-	var b bytes.Buffer
-	if err := template.Must(template.New("convert").Parse(convertHTML)).Execute(&b, data); err != nil {
-		panic(fmt.Sprintf("Failed to parse convert template: %v", err))
-	}
-	convertFormBytes = b.Bytes()
+
+	convertTmpl = template.Must(template.New("convert").Parse(convertHTML))
+)
+
+// Convert provides user interaction via http form.
+type Convert struct {
+	WavMaxSize int64
+	Mp3MaxSize int64
 }
 
-// accept generates string for accept html form attribute.
-func accept(extFns ...extensionsFunc) string {
-	var str strings.Builder
-	for _, fn := range extFns {
-		for _, ext := range fn() {
-			str.WriteString(ext + ",")
-		}
+// Data returns serialized form data, ready to be served.
+func (c Convert) Data() []byte {
+	d := convertForm
+	d.Mp3MaxSize = c.Mp3MaxSize
+	d.WavMaxSize = c.WavMaxSize
+	d.MaxSizes = maxSizes(c.WavMaxSize, c.Mp3MaxSize)
+
+	var b bytes.Buffer
+	if err := convertTmpl.Execute(&b, d); err != nil {
+		panic(fmt.Sprintf("Failed to parse convert template: %v", err))
 	}
-	return str.String()
+	return b.Bytes()
+}
+
+func maxSizes(wavMaxSize, mp3MaxSize int64) map[string]int64 {
+	m := make(map[string]int64)
+	for _, ext := range input.Extensions.Mp3 {
+		m[ext] = mp3MaxSize
+	}
+	for _, ext := range input.Extensions.Wav {
+		m[ext] = wavMaxSize
+	}
+	return m
 }
 
 // outFormats maps the extensions with values without dots.
@@ -168,8 +186,12 @@ const convertHTML = `
             return filePath.substr(filePath.lastIndexOf('\\') + 1);
         }
         function getFileExtension(fileName) {
-            return fileName.split('.')[1];
+            return '.'.concat(fileName.split('.')[1]);
         }
+        function humanFileSize(size) {
+            var i = size == 0 ? 0 : Math.floor(Math.log(size) / Math.log(1024));
+            return (size / Math.pow(1024, i)).toFixed(2) * 1 + ' ' + ['B', 'kB', 'MB', 'GB', 'TB'][i];
+        };
         function displayClass(className, mode) {
             var elements = document.getElementsByClassName(className);
             for (var i = 0, ii = elements.length; i < ii; i++) {
@@ -179,7 +201,6 @@ const convertHTML = `
         function displayId(id, mode){
             document.getElementById(id).style.display = mode;
         }
-
         document.addEventListener('DOMContentLoaded', function(event) {
             document.getElementById('convert').reset();
             // base form handlers
@@ -190,21 +211,16 @@ const convertHTML = `
             document.getElementById('mp3-bit-rate-mode').addEventListener('click', onMp3BitRateModeChange);
             document.getElementById('mp3-use-quality').addEventListener('click', onMp3UseQUalityChange);
         });
-        
-
         function onInputFileChange(){
-            var file = getFile();
-            var fileName = getFileName(file);
+            var fileName = getFileName(getFile());
             document.getElementById('input-file-label').innerHTML = fileName;
             var ext = getFileExtension(fileName);
-            if (accept.indexOf(ext) > 0) {
-                displayClass('input-file-label', 'inline');
-                displayId('output-format-block', 'inline');
-                var size = file.files[0].size;
-                console.log(file.size);
-            } else {
+            if (accept.indexOf(ext) < 0) {
                 alert('Only files with following extensions are allowed: {{.Accept}}')
+                return;
             }
+            displayClass('input-file-label', 'inline');
+            displayId('output-format-block', 'inline');
         }
 		function onOutputFormatChange(){
             displayClass('output-options', 'none');
@@ -225,10 +241,21 @@ const convertHTML = `
             }
         }
         function onSubmitClick(){
-            var ext = getFileExtension(getFileName(getFile()));
             var convert = document.getElementById('convert');
             convert.action = ext;
-            convert.submit();
+            var file = getFile();
+            var ext = getFileExtension(getFileName(file));
+            var size = file.files[0].size;
+            switch (ext) {
+            {{ range $ext, $maxSize := .MaxSizes }}
+            case '{{$ext}}': 
+                if ({{ $maxSize }} > 0 && {{ $maxSize }} < size) {
+                    alert('File is too big. Maximum allowed size: '.concat(humanFileSize({{ $maxSize }})))
+                } 
+                return;
+            {{ end }}
+            }  
+            convert.submit();  
         }
     </script> 
 </head>

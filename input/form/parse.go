@@ -8,8 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pipelined/mp3"
 	"github.com/pipelined/phono/input"
+
+	"github.com/pipelined/mp3"
 	"github.com/pipelined/signal"
 	"github.com/pipelined/wav"
 )
@@ -22,17 +23,17 @@ func (e ErrUnsupportedConfig) Error() string {
 	return string(e)
 }
 
-// Convert provides user interaction via http form.
-type Convert struct{}
-
-// Data returns serialized form data, ready to be served.
-func (Convert) Data() []byte {
-	return convertFormBytes
-}
-
-// InputExtension of file from http request.
-func (Convert) InputExtension(r *http.Request) string {
-	return fmt.Sprintf(".%s", path.Base(r.URL.Path))
+// InputMaxSize of file from http request.
+func (c Convert) InputMaxSize(r *http.Request) (int64, error) {
+	ext := strings.ToLower(path.Base(r.URL.Path))
+	switch ext {
+	case input.DefaultExtension.Mp3:
+		return c.Mp3MaxSize, nil
+	case input.DefaultExtension.Wav:
+		return c.WavMaxSize, nil
+	default:
+		return 0, fmt.Errorf("Format %s not supported", ext)
+	}
 }
 
 // ParsePump returns pump defined as input for conversion.
@@ -60,10 +61,10 @@ func (Convert) ParsePump(r *http.Request) (input.Pump, io.Closer, error) {
 func (Convert) ParseSink(r *http.Request) (input.Sink, error) {
 	ext := r.FormValue("format")
 	switch ext {
-	case wav.DefaultExtension:
+	case input.DefaultExtension.Wav:
 		s, err := parseWavSink(r)
 		return input.Sink{Wav: s}, err
-	case mp3.DefaultExtension:
+	case input.DefaultExtension.Mp3:
 		s, err := parseMp3Sink(r)
 		return input.Sink{Mp3: s}, err
 	default:

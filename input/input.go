@@ -10,6 +10,28 @@ import (
 	"github.com/pipelined/wav"
 )
 
+var (
+	DefaultExtension = struct {
+		Wav string
+		Mp3 string
+	}{
+		Wav: ".wav",
+		Mp3: ".mp3",
+	}
+
+	Extensions = struct {
+		Wav []string
+		Mp3 []string
+	}{
+		Wav: []string{
+			DefaultExtension.Wav, ".wave",
+		},
+		Mp3: []string{
+			DefaultExtension.Mp3,
+		},
+	}
+)
+
 type (
 	// Pump contains all pipe.Pumps that user can provide as input.
 	Pump struct {
@@ -26,9 +48,9 @@ type (
 	// ConvertForm provides html form to the user. The form contains all information needed for conversion.
 	ConvertForm interface {
 		Data() []byte
-		InputExtension(*http.Request) string
-		ParsePump(*http.Request) (Pump, io.Closer, error)
-		ParseSink(*http.Request) (Sink, error)
+		InputMaxSize(r *http.Request) (int64, error)
+		ParsePump(r *http.Request) (Pump, io.Closer, error)
+		ParseSink(r *http.Request) (Sink, error)
 	}
 )
 
@@ -62,9 +84,9 @@ func (s Sink) SetOutput(ws io.WriteSeeker) {
 func (s Sink) Extension() string {
 	switch {
 	case s.mp3():
-		return mp3.DefaultExtension
+		return DefaultExtension.Mp3
 	case s.wav():
-		return wav.DefaultExtension
+		return DefaultExtension.Wav
 	default:
 		return ""
 	}

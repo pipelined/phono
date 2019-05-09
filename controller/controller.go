@@ -23,19 +23,18 @@ import (
 //	4. Create temp file
 //	5. Run conversion
 //	6. Send result file
-func Convert(form input.ConvertForm, limits map[string]int64, tempDir string) http.Handler {
+func Convert(form input.ConvertForm, tempDir string) http.Handler {
+	formData := form.Data()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
-			_, err := w.Write(form.Data())
+			_, err := w.Write(formData)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 		case http.MethodPost:
-			// extract input format from the path
-			inExt := form.InputExtension(r)
 			// get max size for the format
-			if maxSize, ok := limits[inExt]; ok {
+			if maxSize, err := form.InputMaxSize(r); err == nil {
 				r.Body = http.MaxBytesReader(w, r.Body, maxSize)
 				// check max size
 				if err := r.ParseMultipartForm(maxSize); err != nil {
@@ -43,7 +42,7 @@ func Convert(form input.ConvertForm, limits map[string]int64, tempDir string) ht
 					return
 				}
 			} else {
-				http.Error(w, fmt.Sprintf("Format %s not supported", inExt), http.StatusBadRequest)
+				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 			// parse pump

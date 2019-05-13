@@ -54,7 +54,7 @@ func Convert(form input.ConvertForm, tempDir string) http.Handler {
 			defer closer.Close()
 
 			// parse sink
-			sink, err := form.ParseSink(r)
+			buildFn, ext, err := form.ParseSink(r)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
@@ -68,11 +68,8 @@ func Convert(form input.ConvertForm, tempDir string) http.Handler {
 			}
 			defer cleanUp(tempFile)
 
-			// set temp file to sink
-			sink.SetOutput(tempFile)
-
 			// convert file using temp file
-			err = convert(pump.Pump(), sink.Sink())
+			err = convert(pump, buildFn(tempFile))
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
@@ -92,8 +89,8 @@ func Convert(form input.ConvertForm, tempDir string) http.Handler {
 			}
 			fileSize := strconv.FormatInt(stat.Size(), 10)
 			//Send the headers
-			w.Header().Set("Content-Disposition", "attachment; filename="+outFileName("result", 1, sink.Extension()))
-			w.Header().Set("Content-Type", mime.TypeByExtension(sink.Extension()))
+			w.Header().Set("Content-Disposition", "attachment; filename="+outFileName("result", 1, ext))
+			w.Header().Set("Content-Type", mime.TypeByExtension(ext))
 			w.Header().Set("Content-Length", fileSize)
 			_, err = io.Copy(w, tempFile) // send file to a client
 			if err != nil {

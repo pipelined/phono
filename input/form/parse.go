@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pipelined/pipe"
+
 	"github.com/pipelined/phono/input"
 
 	"github.com/pipelined/mp3"
@@ -27,9 +29,9 @@ func (e ErrUnsupportedConfig) Error() string {
 func (c Convert) InputMaxSize(r *http.Request) (int64, error) {
 	ext := strings.ToLower(path.Base(r.URL.Path))
 	switch ext {
-	case input.DefaultExtension.Mp3:
+	case input.Mp3.DefaultExtension:
 		return c.Mp3MaxSize, nil
-	case input.DefaultExtension.Wav:
+	case input.Wav.DefaultExtension:
 		return c.WavMaxSize, nil
 	default:
 		return 0, fmt.Errorf("Format %s not supported", ext)
@@ -37,70 +39,59 @@ func (c Convert) InputMaxSize(r *http.Request) (int64, error) {
 }
 
 // ParsePump returns pump defined as input for conversion.
-func (Convert) ParsePump(r *http.Request) (input.Pump, io.Closer, error) {
+func (Convert) ParsePump(r *http.Request) (pipe.Pump, io.Closer, error) {
 	f, handler, err := r.FormFile(fileKey)
 	if err != nil {
-		return input.Pump{}, nil, fmt.Errorf("Invalid file: %v", err)
+		return nil, nil, fmt.Errorf("Invalid file: %v", err)
 	}
 	switch {
-	case hasExtension(handler.Filename, wav.Extensions):
-		return input.Pump{
-			Wav: &wav.Pump{ReadSeeker: f},
-		}, f, nil
-	case hasExtension(handler.Filename, mp3.Extensions):
-		return input.Pump{
-			Mp3: &mp3.Pump{Reader: f},
-		}, f, nil
+	case hasExtension(handler.Filename, input.Wav.Extensions):
+		return &wav.Pump{ReadSeeker: f}, f, nil
+	case hasExtension(handler.Filename, input.Mp3.Extensions):
+		return &mp3.Pump{Reader: f}, f, nil
 	default:
-		return input.Pump{}, nil, fmt.Errorf("File has unsupported extension: %v", handler.Filename)
+		if err := f.Close(); err != nil {
+			return nil, nil, fmt.Errorf("File has unsupported extension: %v \nFailed to close form file: %v", handler.Filename, err)
+		}
+		return nil, nil, fmt.Errorf("File has unsupported extension: %v", handler.Filename)
 	}
 }
 
 // ParseSink provided via form.
 // This function should return extensions, sinkbuilder
-func (Convert) ParseSink(r *http.Request) (input.Sink, error) {
-	ext := r.FormValue("format")
+func (Convert) ParseSink(r *http.Request) (fn input.BuildFunc, ext string, err error) {
+	ext = r.FormValue("format")
 	switch ext {
-	case input.DefaultExtension.Wav:
-		s, err := parseWavSink(r)
-		return input.Sink{Wav: s}, err
-	case input.DefaultExtension.Mp3:
-		s, err := parseMp3Sink(r)
-		return input.Sink{Mp3: s}, err
+	case input.Wav.DefaultExtension:
+		fn, err = parseWavSink(r)
+	case input.Mp3.DefaultExtension:
+		fn, err = parseMp3Sink(r)
 	default:
-		return input.Sink{}, ErrUnsupportedConfig(fmt.Sprintf("Unsupported format: %v", ext))
+		err = ErrUnsupportedConfig(fmt.Sprintf("Unsupported format: %v", ext))
 	}
+	return
 }
 
-func parseWavSink(r *http.Request) (*wav.Sink, error) {
+func parseWavSink(r *http.Request) (input.BuildFunc, error) {
 	// try to get bit depth
 	bitDepth, err := parseIntValue(r, "wav-bit-depth", "bit depth")
 	if err != nil {
 		return nil, err
 	}
-	if err := wav.Supported.BitDepth(signal.BitDepth(bitDepth)); err != nil {
-		return nil, fmt.Errorf("Bit depth %v is not supported", bitDepth)
-	}
-
-	return &wav.Sink{
-		BitDepth: signal.BitDepth(bitDepth),
-	}, nil
+	return input.Wav.Build(signal.BitDepth(bitDepth))
 }
 
-func parseMp3Sink(r *http.Request) (*mp3.Sink, error) {
-	// try to get bit rate mode
-	bitRateModeString := r.FormValue("mp3-bit-rate-mode")
-	if bitRateModeString == "" {
-		return nil, fmt.Errorf("Please provide bit rate mode")
-	}
-
+func parseMp3Sink(r *http.Request) (input.BuildFunc, error) {
 	// try to get channel mode
 	channelMode, err := parseIntValue(r, "mp3-channel-mode", "channel mode")
 	if err != nil {
 		return nil, err
 	}
-	if err := mp3.Supported.ChannelMode(mp3.ChannelMode(channelMode)); err != nil {
-		return nil, fmt.Errorf("Channel mode %v is not supported", channelMode)
+
+	// try to get bit rate mode
+	bitRateModeString := r.FormValue("mp3-bit-rate-mode")
+	if bitRateModeString == "" {
+		return nil, fmt.Errorf("Please provide bit rate mode")
 	}
 
 	var bitRateMode mp3.BitRateMode
@@ -111,37 +102,28 @@ func parseMp3Sink(r *http.Request) (*mp3.Sink, error) {
 		if err != nil {
 			return nil, err
 		}
-		if vbrQuality < 0 || vbrQuality > 9 {
-			return nil, fmt.Errorf("VBR quality %v is not supported", vbrQuality)
-		}
-
 		bitRateMode = mp3.VBR{
 			Quality: vbrQuality,
 		}
-	default:
+	case mp3opts.CBR:
 		// try to get bitrate
 		bitRate, err := parseIntValue(r, "mp3-bit-rate", "bit rate")
 		if err != nil {
 			return nil, err
 		}
-		if bitRate > mp3.MaxBitRate || bitRate < mp3.MinBitRate {
-			return nil, fmt.Errorf("Bit rate %v is not supported. Provide value between %d and %d", bitRate, mp3.MinBitRate, mp3.MaxBitRate)
-		}
 
-		if bitRateModeString == mp3opts.CBR {
-			bitRateMode = mp3.CBR{
-				BitRate: bitRate,
-			}
-		} else {
-			bitRateMode = mp3.ABR{
-				BitRate: bitRate,
-			}
+		bitRateMode = mp3.CBR{
+			BitRate: bitRate,
 		}
-	}
-
-	s := mp3.Sink{
-		BitRateMode: bitRateMode,
-		ChannelMode: mp3.ChannelMode(channelMode),
+	case mp3opts.ABR:
+		// try to get bitrate
+		bitRate, err := parseIntValue(r, "mp3-bit-rate", "bit rate")
+		if err != nil {
+			return nil, err
+		}
+		bitRateMode = mp3.ABR{
+			BitRate: bitRate,
+		}
 	}
 
 	// try to get mp3 quality
@@ -149,18 +131,15 @@ func parseMp3Sink(r *http.Request) (*mp3.Sink, error) {
 	if err != nil {
 		return nil, err
 	}
+	var quality int
 	if useQuality {
-		mp3Quality, err := parseIntValue(r, "mp3-quality", "mp3 quality")
+		quality, err = parseIntValue(r, "mp3-quality", "mp3 quality")
 		if err != nil {
 			return nil, err
 		}
-		if mp3Quality < 0 || mp3Quality > 9 {
-			return nil, fmt.Errorf("MP3 quality %v is not supported", mp3Quality)
-		}
-		s.SetQuality(mp3Quality)
 	}
 
-	return &s, nil
+	return input.Mp3.Build(bitRateMode, mp3.ChannelMode(channelMode), useQuality, quality)
 }
 
 // parseIntValue parses value of key provided in the html form.
@@ -193,8 +172,8 @@ func parseBoolValue(r *http.Request, key, name string) (bool, error) {
 	return val, nil
 }
 
-func hasExtension(fileName string, fn extensionsFunc) bool {
-	for _, ext := range fn() {
+func hasExtension(fileName string, exts []string) bool {
+	for _, ext := range exts {
 		if strings.HasSuffix(strings.ToLower(fileName), ext) {
 			return true
 		}

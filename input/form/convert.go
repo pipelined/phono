@@ -11,7 +11,6 @@ import (
 
 	"github.com/pipelined/mp3"
 	"github.com/pipelined/signal"
-	"github.com/pipelined/wav"
 )
 
 // convertData provides a data for convert form, so user can define conversion parameters.
@@ -38,7 +37,6 @@ type mp3Options struct {
 	VBR           string
 	ABR           string
 	CBR           string
-	DefineQuality bool
 }
 
 const (
@@ -56,12 +54,12 @@ var (
 	}
 
 	convertForm = convertData{
-		WavMime:    mime.TypeByExtension(input.DefaultExtension.Wav),
-		Mp3Mime:    mime.TypeByExtension(input.DefaultExtension.Mp3),
-		Accept:     strings.Join(append(input.Extensions.Wav, input.Extensions.Mp3...), ", "),
-		OutFormats: outFormats(input.DefaultExtension.Wav, input.DefaultExtension.Mp3),
+		WavMime:    mime.TypeByExtension(input.Wav.DefaultExtension),
+		Mp3Mime:    mime.TypeByExtension(input.Mp3.DefaultExtension),
+		Accept:     strings.Join(append(input.Wav.Extensions, input.Mp3.Extensions...), ", "),
+		OutFormats: outFormats(input.Wav.DefaultExtension, input.Mp3.DefaultExtension),
 		WavOptions: wavOptions{
-			BitDepths: wav.Supported.BitDepths(),
+			BitDepths: input.Wav.BitDepths,
 		},
 		Mp3Options: mp3opts,
 	}
@@ -91,10 +89,10 @@ func (c Convert) Data() []byte {
 
 func maxSizes(wavMaxSize, mp3MaxSize int64) map[string]int64 {
 	m := make(map[string]int64)
-	for _, ext := range input.Extensions.Mp3 {
+	for _, ext := range input.Mp3.Extensions {
 		m[ext] = mp3MaxSize
 	}
-	for _, ext := range input.Extensions.Wav {
+	for _, ext := range input.Wav.Extensions {
 		m[ext] = wavMaxSize
 	}
 	return m
@@ -242,17 +240,18 @@ const convertHTML = `
         }
         function onSubmitClick(){
             var convert = document.getElementById('convert');
-            convert.action = ext;
             var file = getFile();
             var ext = getFileExtension(getFileName(file));
+            convert.action = ext;
             var size = file.files[0].size;
             switch (ext) {
             {{ range $ext, $maxSize := .MaxSizes }}
             case '{{$ext}}': 
                 if ({{ $maxSize }} > 0 && {{ $maxSize }} < size) {
                     alert('File is too big. Maximum allowed size: '.concat(humanFileSize({{ $maxSize }})))
+                    return;
                 } 
-                return;
+                break;
             {{ end }}
             }  
             convert.submit();  

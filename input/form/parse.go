@@ -14,7 +14,6 @@ import (
 
 	"github.com/pipelined/mp3"
 	"github.com/pipelined/signal"
-	"github.com/pipelined/wav"
 )
 
 // ErrUnsupportedConfig is returned when unsupported configuraton passed.
@@ -45,10 +44,10 @@ func (Convert) ParsePump(r *http.Request) (pipe.Pump, io.Closer, error) {
 		return nil, nil, fmt.Errorf("Invalid file: %v", err)
 	}
 	switch {
-	case hasExtension(handler.Filename, input.Wav.Extensions):
-		return &wav.Pump{ReadSeeker: f}, f, nil
-	case hasExtension(handler.Filename, input.Mp3.Extensions):
-		return &mp3.Pump{Reader: f}, f, nil
+	case input.HasExtension(handler.Filename, input.Wav.Extensions):
+		return input.Wav.Pump(f), f, nil
+	case input.HasExtension(handler.Filename, input.Mp3.Extensions):
+		return input.Mp3.Pump(f), f, nil
 	default:
 		if err := f.Close(); err != nil {
 			return nil, nil, fmt.Errorf("File has unsupported extension: %v \nFailed to close form file: %v", handler.Filename, err)
@@ -170,13 +169,4 @@ func parseBoolValue(r *http.Request, key, name string) (bool, error) {
 		return false, ErrUnsupportedConfig(fmt.Sprintf("Failed parsing %s %s: %v", name, str, err))
 	}
 	return val, nil
-}
-
-func hasExtension(fileName string, exts []string) bool {
-	for _, ext := range exts {
-		if strings.HasSuffix(strings.ToLower(fileName), ext) {
-			return true
-		}
-	}
-	return false
 }

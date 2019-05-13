@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/pipelined/signal"
 
@@ -67,6 +68,13 @@ var (
 	}
 )
 
+// Pump returns wav pump with provided ReadSeeker.
+func (f wavFormat) Pump(rs io.ReadSeeker) pipe.Pump {
+	return &wav.Pump{
+		ReadSeeker: rs,
+	}
+}
+
 // Build validates all parameters required to build wav sink. If valid, build closure is returned.
 func (f wavFormat) Build(bitDepth signal.BitDepth) (BuildFunc, error) {
 	if _, ok := f.BitDepths[bitDepth]; !ok {
@@ -79,6 +87,13 @@ func (f wavFormat) Build(bitDepth signal.BitDepth) (BuildFunc, error) {
 			WriteSeeker: ws,
 		}
 	}, nil
+}
+
+// Pump returns mp3 pump with provided Reader.
+func (f mp3Format) Pump(rs io.Reader) pipe.Pump {
+	return &mp3.Pump{
+		Reader: rs,
+	}
 }
 
 // Build validates all parameters required to build mp3 sink. If valid, build closure is returned.
@@ -127,4 +142,16 @@ func (f mp3Format) bitRate(v int) error {
 		return fmt.Errorf("Bit rate %v is not supported. Provide value between %d and %d", v, f.MinBitRate, f.MaxBitRate)
 	}
 	return nil
+}
+
+// HasExtension validates if filename has one of passed extensions.
+// Filename is lower-cased before comparison.
+func HasExtension(fileName string, exts []string) bool {
+	name := strings.ToLower(fileName)
+	for _, ext := range exts {
+		if strings.HasSuffix(name, ext) {
+			return true
+		}
+	}
+	return false
 }

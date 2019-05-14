@@ -4,7 +4,7 @@ package input
 import (
 	"fmt"
 	"io"
-	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/pipelined/signal"
@@ -20,7 +20,7 @@ type (
 		Data() []byte
 		InputMaxSize(url string) (int64, error)
 		FileKey() string
-		ParseSink(r *http.Request) (BuildFunc, string, error)
+		ParseSink(data url.Values) (BuildFunc, string, error)
 	}
 
 	wavFormat struct {

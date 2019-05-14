@@ -61,7 +61,7 @@ func Convert(form input.ConvertForm, tempDir string) http.Handler {
 			}
 
 			// parse sink
-			buildFn, ext, err := form.ParseSink(r)
+			buildFn, ext, err := form.ParseSink(r.Form)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return

@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"mime"
+	"net/url"
+	"path"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -18,14 +21,42 @@ type convertData struct {
 	Mp3Mime    string
 	Wav        interface{}
 	Mp3        interface{}
-	WavMaxSize int64
-	Mp3MaxSize int64
 	MaxSizes   map[string]int64
+}
+
+type extensionsFunc func() []string
+
+// ErrUnsupportedConfig is returned when unsupported configuraton passed.
+type ErrUnsupportedConfig string
+
+// Error returns error message.
+func (e ErrUnsupportedConfig) Error() string {
+	return string(e)
 }
 
 const (
 	fileKey = "input-file"
 )
+
+func maxSizes(wavMaxSize, mp3MaxSize int64) map[string]int64 {
+	m := make(map[string]int64)
+	for _, ext := range input.Mp3.Extensions {
+		m[ext] = mp3MaxSize
+	}
+	for _, ext := range input.Wav.Extensions {
+		m[ext] = wavMaxSize
+	}
+	return m
+}
+
+// outFormats maps the extensions with values without dots.
+func outFormats(exts ...string) map[string]string {
+	m := make(map[string]string)
+	for _, ext := range exts {
+		m[ext] = ext[1:]
+	}
+	return m
+}
 
 var (
 	convertForm = convertData{
@@ -49,8 +80,6 @@ type Convert struct {
 // Data returns serialized form data, ready to be served.
 func (c Convert) Data() []byte {
 	d := convertForm
-	d.Mp3MaxSize = c.Mp3MaxSize
-	d.WavMaxSize = c.WavMaxSize
 	d.MaxSizes = maxSizes(c.WavMaxSize, c.Mp3MaxSize)
 
 	var b bytes.Buffer
@@ -60,27 +89,127 @@ func (c Convert) Data() []byte {
 	return b.Bytes()
 }
 
-func maxSizes(wavMaxSize, mp3MaxSize int64) map[string]int64 {
-	m := make(map[string]int64)
-	for _, ext := range input.Mp3.Extensions {
-		m[ext] = mp3MaxSize
+// InputMaxSize of file from http request.
+func (c Convert) InputMaxSize(url string) (int64, error) {
+	ext := strings.ToLower(path.Base(url))
+	switch ext {
+	case input.Mp3.DefaultExtension:
+		return c.Mp3MaxSize, nil
+	case input.Wav.DefaultExtension:
+		return c.WavMaxSize, nil
+	default:
+		return 0, fmt.Errorf("Format %s not supported", ext)
 	}
-	for _, ext := range input.Wav.Extensions {
-		m[ext] = wavMaxSize
-	}
-	return m
 }
 
-// outFormats maps the extensions with values without dots.
-func outFormats(exts ...string) map[string]string {
-	m := make(map[string]string)
-	for _, ext := range exts {
-		m[ext] = ext[1:]
-	}
-	return m
+// FileKey returns a name of form file value.
+func (Convert) FileKey() string {
+	return fileKey
 }
 
-type extensionsFunc func() []string
+// ParseSink provided via form.
+// This function should return extensions, sinkbuilder
+func (Convert) ParseSink(data url.Values) (fn input.BuildFunc, ext string, err error) {
+	ext = data.Get("format")
+	switch ext {
+	case input.Wav.DefaultExtension:
+		fn, err = parseWavSink(data)
+	case input.Mp3.DefaultExtension:
+		fn, err = parseMp3Sink(data)
+	default:
+		err = ErrUnsupportedConfig(fmt.Sprintf("Unsupported format: %v", ext))
+	}
+	return
+}
+
+func parseWavSink(data url.Values) (input.BuildFunc, error) {
+	// try to get bit depth
+	bitDepth, err := parseIntValue(data, "wav-bit-depth", "bit depth")
+	if err != nil {
+		return nil, err
+	}
+	return input.Wav.Build(bitDepth)
+}
+
+func parseMp3Sink(data url.Values) (input.BuildFunc, error) {
+	// try to get channel mode
+	channelMode, err := parseIntValue(data, "mp3-channel-mode", "channel mode")
+	if err != nil {
+		return nil, err
+	}
+
+	// try to get bit rate mode
+	bitRateMode := data.Get("mp3-bit-rate-mode")
+	if bitRateMode == "" {
+		return nil, fmt.Errorf("Please provide bit rate mode")
+	}
+
+	var bitRate int
+	switch bitRateMode {
+	case input.Mp3.VBR:
+		// try to get vbr quality
+		bitRate, err = parseIntValue(data, "mp3-vbr-quality", "vbr quality")
+		if err != nil {
+			return nil, err
+		}
+	case input.Mp3.CBR:
+		// try to get bitrate
+		bitRate, err = parseIntValue(data, "mp3-bit-rate", "bit rate")
+		if err != nil {
+			return nil, err
+		}
+	case input.Mp3.ABR:
+		// try to get bitrate
+		bitRate, err = parseIntValue(data, "mp3-bit-rate", "bit rate")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// try to get mp3 quality
+	useQuality, err := parseBoolValue(data, "mp3-use-quality", "mp3 quality")
+	if err != nil {
+		return nil, err
+	}
+	var quality int
+	if useQuality {
+		quality, err = parseIntValue(data, "mp3-quality", "mp3 quality")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return input.Mp3.Build(bitRateMode, bitRate, channelMode, useQuality, quality)
+}
+
+// parseIntValue parses value of key provided in the html form.
+// Returns error if value is not provided or cannot be parsed as int.
+func parseIntValue(data url.Values, key, name string) (int, error) {
+	str := data.Get(key)
+	if str == "" {
+		return 0, ErrUnsupportedConfig(fmt.Sprintf("%s not provided", name))
+	}
+
+	val, err := strconv.Atoi(str)
+	if err != nil {
+		return 0, ErrUnsupportedConfig(fmt.Sprintf("Failed parsing %s %s: %v", name, str, err))
+	}
+	return val, nil
+}
+
+// parseBoolValue parses value of key provided in the html form.
+// Returns false if value is not provided. Returns error when cannot be parsed as bool.
+func parseBoolValue(data url.Values, key, name string) (bool, error) {
+	str := data.Get(key)
+	if str == "" {
+	}
+
+	val, err := strconv.ParseBool(str)
+	if err != nil {
+		return false, ErrUnsupportedConfig(fmt.Sprintf("Failed parsing %s %s: %v", name, str, err))
+	}
+	return val, nil
+}
 
 const convertHTML = `
 <html>

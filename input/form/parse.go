@@ -2,15 +2,12 @@ package form
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"path"
 	"strconv"
 	"strings"
 
 	"github.com/pipelined/phono/input"
-
-	"github.com/pipelined/pipe"
 )
 
 // ErrUnsupportedConfig is returned when unsupported configuraton passed.
@@ -22,8 +19,8 @@ func (e ErrUnsupportedConfig) Error() string {
 }
 
 // InputMaxSize of file from http request.
-func (c Convert) InputMaxSize(r *http.Request) (int64, error) {
-	ext := strings.ToLower(path.Base(r.URL.Path))
+func (c Convert) InputMaxSize(url string) (int64, error) {
+	ext := strings.ToLower(path.Base(url))
 	switch ext {
 	case input.Mp3.DefaultExtension:
 		return c.Mp3MaxSize, nil
@@ -34,23 +31,9 @@ func (c Convert) InputMaxSize(r *http.Request) (int64, error) {
 	}
 }
 
-// ParsePump returns pump defined as input for conversion.
-func (Convert) ParsePump(r *http.Request) (pipe.Pump, io.Closer, error) {
-	f, handler, err := r.FormFile(fileKey)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Invalid file: %v", err)
-	}
-	switch {
-	case input.HasExtension(handler.Filename, input.Wav.Extensions):
-		return input.Wav.Pump(f), f, nil
-	case input.HasExtension(handler.Filename, input.Mp3.Extensions):
-		return input.Mp3.Pump(f), f, nil
-	default:
-		if err := f.Close(); err != nil {
-			return nil, nil, fmt.Errorf("File has unsupported extension: %v \nFailed to close form file: %v", handler.Filename, err)
-		}
-		return nil, nil, fmt.Errorf("File has unsupported extension: %v", handler.Filename)
-	}
+// FileKey returns a name of form file value.
+func (Convert) FileKey() string {
+	return fileKey
 }
 
 // ParseSink provided via form.
@@ -133,7 +116,7 @@ func parseMp3Sink(r *http.Request) (input.BuildFunc, error) {
 func parseIntValue(r *http.Request, key, name string) (int, error) {
 	str := r.FormValue(key)
 	if str == "" {
-		return 0, ErrUnsupportedConfig(fmt.Sprintf("Please provide %s", name))
+		return 0, ErrUnsupportedConfig(fmt.Sprintf("%s not provided", name))
 	}
 
 	val, err := strconv.Atoi(str)

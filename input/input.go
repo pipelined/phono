@@ -18,8 +18,8 @@ type (
 	// ConvertForm provides html form to the user. The form contains all information needed for conversion.
 	ConvertForm interface {
 		Data() []byte
-		InputMaxSize(r *http.Request) (int64, error)
-		ParsePump(r *http.Request) (pipe.Pump, io.Closer, error)
+		InputMaxSize(url string) (int64, error)
+		FileKey() string
 		ParseSink(r *http.Request) (BuildFunc, string, error)
 	}
 

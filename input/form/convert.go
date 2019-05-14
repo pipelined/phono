@@ -8,9 +8,6 @@ import (
 	"text/template"
 
 	"github.com/pipelined/phono/input"
-
-	"github.com/pipelined/mp3"
-	"github.com/pipelined/signal"
 )
 
 // convertData provides a data for convert form, so user can define conversion parameters.
@@ -19,24 +16,11 @@ type convertData struct {
 	OutFormats map[string]string
 	WavMime    string
 	Mp3Mime    string
-	WavOptions wavOptions
-	Mp3Options mp3Options
+	Wav        interface{}
+	Mp3        interface{}
 	WavMaxSize int64
 	Mp3MaxSize int64
 	MaxSizes   map[string]int64
-}
-
-// wavOptions is a struct of wav format options that are available for conversion.
-type wavOptions struct {
-	BitDepths map[signal.BitDepth]struct{}
-}
-
-// mp3Options is a struct of mp3 format options that are available for conversion.
-type mp3Options struct {
-	ChannelModes  map[mp3.ChannelMode]struct{}
-	VBR           string
-	ABR           string
-	CBR           string
 }
 
 const (
@@ -44,24 +28,13 @@ const (
 )
 
 var (
-	// ConvertFormData is the serialized convert form with values.
-	// convertFormBytes []byte
-	mp3opts = mp3Options{
-		VBR:          "VBR",
-		ABR:          "ABR",
-		CBR:          "CBR",
-		ChannelModes: mp3.Supported.ChannelModes(),
-	}
-
 	convertForm = convertData{
 		WavMime:    mime.TypeByExtension(input.Wav.DefaultExtension),
 		Mp3Mime:    mime.TypeByExtension(input.Mp3.DefaultExtension),
 		Accept:     strings.Join(append(input.Wav.Extensions, input.Mp3.Extensions...), ", "),
 		OutFormats: outFormats(input.Wav.DefaultExtension, input.Mp3.DefaultExtension),
-		WavOptions: wavOptions{
-			BitDepths: input.Wav.BitDepths,
-		},
-		Mp3Options: mp3opts,
+		Wav:        input.Wav,
+		Mp3:        input.Mp3,
 	}
 
 	convertTmpl = template.Must(template.New("convert").Parse(convertHTML))
@@ -280,7 +253,7 @@ const convertHTML = `
                 bit depth
                 <select name="wav-bit-depth" class="option">
                     <option hidden disabled selected value>select</option>
-                    {{range $key, $value := .WavOptions.BitDepths}}
+                    {{range $key, $value := .Wav.BitDepths}}
                         <option value="{{ printf "%d" $key }}">{{ $key }}</option>
                     {{end}}
                 </select>
@@ -289,22 +262,22 @@ const convertHTML = `
                 channel mode
                 <select name="mp3-channel-mode" class="option">
                     <option hidden disabled selected value>select</option>
-                    {{range $key, $value := .Mp3Options.ChannelModes}}
+                    {{range $key, $value := .Mp3.ChannelModes}}
                         <option value="{{ printf "%d" $key }}">{{ $key }}</option>
                     {{end}}
                 </select>
                 bit rate mode
                 <select id="mp3-bit-rate-mode" class="option" name="mp3-bit-rate-mode">
                     <option hidden disabled selected value>select</option>
-                    <option id="{{ .Mp3Options.VBR  }}" value="{{ .Mp3Options.VBR }}">{{ .Mp3Options.VBR }}</option>
-                    <option id="{{ .Mp3Options.CBR  }}" value="{{ .Mp3Options.CBR }}">{{ .Mp3Options.CBR }}</option>
-                    <option id="{{ .Mp3Options.ABR  }}" value="{{ .Mp3Options.ABR }}">{{ .Mp3Options.ABR }}</option>
+                    <option id="{{ .Mp3.VBR  }}" value="{{ .Mp3.VBR }}">{{ .Mp3.VBR }}</option>
+                    <option id="{{ .Mp3.CBR  }}" value="{{ .Mp3.CBR }}">{{ .Mp3.CBR }}</option>
+                    <option id="{{ .Mp3.ABR  }}" value="{{ .Mp3.ABR }}">{{ .Mp3.ABR }}</option>
                 </select>
-                <div class="mp3-bit-rate-mode-options mp3-{{ .Mp3Options.ABR }}-options mp3-{{ .Mp3Options.CBR }}-options">
+                <div class="mp3-bit-rate-mode-options mp3-{{ .Mp3.ABR }}-options mp3-{{ .Mp3.CBR }}-options">
                     bit rate [8-320]
                     <input type="text" class="option" name="mp3-bit-rate" maxlength="3" size="3">
                 </div> 
-                <div class="mp3-bit-rate-mode-options mp3-{{ .Mp3Options.VBR }}-options">
+                <div class="mp3-bit-rate-mode-options mp3-{{ .Mp3.VBR }}-options">
                     vbr quality [0-9]
                     <input type="text" class="option" name="mp3-vbr-quality" maxlength="1" size="3">
                 </div>

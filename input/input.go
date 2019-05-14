@@ -35,6 +35,9 @@ type (
 		MaxBitRate       int
 		MinBitRate       int
 		ChannelModes     map[mp3.ChannelMode]struct{}
+		VBR              string
+		CBR              string
+		ABR              string
 	}
 
 	// BuildFunc is used to inject WriteSeeker into Sink.
@@ -65,6 +68,9 @@ var (
 			mp3.Stereo:      {},
 			mp3.Mono:        {},
 		},
+		VBR: "VBR",
+		ABR: "ABR",
+		CBR: "CBR",
 	}
 )
 
@@ -76,14 +82,15 @@ func (f wavFormat) Pump(rs io.ReadSeeker) pipe.Pump {
 }
 
 // Build validates all parameters required to build wav sink. If valid, build closure is returned.
-func (f wavFormat) Build(bitDepth signal.BitDepth) (BuildFunc, error) {
-	if _, ok := f.BitDepths[bitDepth]; !ok {
+func (f wavFormat) Build(bitDepth int) (BuildFunc, error) {
+	bd := signal.BitDepth(bitDepth)
+	if _, ok := f.BitDepths[bd]; !ok {
 		return nil, fmt.Errorf("Bit depth %v is not supported", bitDepth)
 	}
 
 	return func(ws io.WriteSeeker) pipe.Sink {
 		return &wav.Sink{
-			BitDepth:    bitDepth,
+			BitDepth:    bd,
 			WriteSeeker: ws,
 		}
 	}, nil
@@ -97,24 +104,31 @@ func (f mp3Format) Pump(rs io.Reader) pipe.Pump {
 }
 
 // Build validates all parameters required to build mp3 sink. If valid, build closure is returned.
-func (f mp3Format) Build(bitRateMode mp3.BitRateMode, channelMode mp3.ChannelMode, useQuality bool, quality int) (BuildFunc, error) {
-	if _, ok := f.ChannelModes[channelMode]; !ok {
-		return nil, fmt.Errorf("Channel mode %v is not supported", channelMode)
+func (f mp3Format) Build(bitRateMode string, bitRate, channelMode int, useQuality bool, quality int) (BuildFunc, error) {
+	cm := mp3.ChannelMode(channelMode)
+	if _, ok := f.ChannelModes[cm]; !ok {
+		return nil, fmt.Errorf("Channel mode %v is not supported", cm)
 	}
 
-	switch brm := bitRateMode.(type) {
-	case mp3.VBR:
-		if brm.Quality < 0 || brm.Quality > 9 {
-			return nil, fmt.Errorf("VBR quality %v is not supported", brm.Quality)
+	var brm mp3.BitRateMode
+	switch bitRateMode {
+	case f.VBR:
+		if bitRate < 0 || bitRate > 9 {
+			return nil, fmt.Errorf("VBR quality %v is not supported", bitRate)
 		}
-	case mp3.CBR:
-		if err := f.bitRate(brm.BitRate); err != nil {
+		brm = mp3.VBR(bitRate)
+	case f.CBR:
+		if err := f.bitRate(bitRate); err != nil {
 			return nil, err
 		}
-	case mp3.ABR:
-		if err := f.bitRate(brm.BitRate); err != nil {
+		brm = mp3.CBR(bitRate)
+	case f.ABR:
+		if err := f.bitRate(bitRate); err != nil {
 			return nil, err
 		}
+		brm = mp3.ABR(bitRate)
+	default:
+		return nil, fmt.Errorf("VBR mode %v is not supported", bitRateMode)
 	}
 
 	if useQuality {
@@ -125,8 +139,8 @@ func (f mp3Format) Build(bitRateMode mp3.BitRateMode, channelMode mp3.ChannelMod
 
 	return func(ws io.WriteSeeker) pipe.Sink {
 		s := &mp3.Sink{
-			BitRateMode: bitRateMode,
-			ChannelMode: channelMode,
+			BitRateMode: brm,
+			ChannelMode: cm,
 			Writer:      ws,
 		}
 		if useQuality {
@@ -143,6 +157,8 @@ func (f mp3Format) bitRate(v int) error {
 	}
 	return nil
 }
+
+// func (f mp3Format) BitRateMode(bitRateMode string, value int) mp3.BitRateMode {}
 
 // HasExtension validates if filename has one of passed extensions.
 // Filename is lower-cased before comparison.

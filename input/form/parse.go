@@ -8,12 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pipelined/pipe"
-
 	"github.com/pipelined/phono/input"
 
-	"github.com/pipelined/mp3"
-	"github.com/pipelined/signal"
+	"github.com/pipelined/pipe"
 )
 
 // ErrUnsupportedConfig is returned when unsupported configuraton passed.
@@ -77,7 +74,7 @@ func parseWavSink(r *http.Request) (input.BuildFunc, error) {
 	if err != nil {
 		return nil, err
 	}
-	return input.Wav.Build(signal.BitDepth(bitDepth))
+	return input.Wav.Build(bitDepth)
 }
 
 func parseMp3Sink(r *http.Request) (input.BuildFunc, error) {
@@ -88,40 +85,30 @@ func parseMp3Sink(r *http.Request) (input.BuildFunc, error) {
 	}
 
 	// try to get bit rate mode
-	bitRateModeString := r.FormValue("mp3-bit-rate-mode")
-	if bitRateModeString == "" {
+	bitRateMode := r.FormValue("mp3-bit-rate-mode")
+	if bitRateMode == "" {
 		return nil, fmt.Errorf("Please provide bit rate mode")
 	}
 
-	var bitRateMode mp3.BitRateMode
-	switch bitRateModeString {
-	case mp3opts.VBR:
+	var bitRate int
+	switch bitRateMode {
+	case input.Mp3.VBR:
 		// try to get vbr quality
-		vbrQuality, err := parseIntValue(r, "mp3-vbr-quality", "vbr quality")
+		bitRate, err = parseIntValue(r, "mp3-vbr-quality", "vbr quality")
 		if err != nil {
 			return nil, err
 		}
-		bitRateMode = mp3.VBR{
-			Quality: vbrQuality,
-		}
-	case mp3opts.CBR:
+	case input.Mp3.CBR:
 		// try to get bitrate
-		bitRate, err := parseIntValue(r, "mp3-bit-rate", "bit rate")
+		bitRate, err = parseIntValue(r, "mp3-bit-rate", "bit rate")
 		if err != nil {
 			return nil, err
 		}
-
-		bitRateMode = mp3.CBR{
-			BitRate: bitRate,
-		}
-	case mp3opts.ABR:
+	case input.Mp3.ABR:
 		// try to get bitrate
-		bitRate, err := parseIntValue(r, "mp3-bit-rate", "bit rate")
+		bitRate, err = parseIntValue(r, "mp3-bit-rate", "bit rate")
 		if err != nil {
 			return nil, err
-		}
-		bitRateMode = mp3.ABR{
-			BitRate: bitRate,
 		}
 	}
 
@@ -138,7 +125,7 @@ func parseMp3Sink(r *http.Request) (input.BuildFunc, error) {
 		}
 	}
 
-	return input.Mp3.Build(bitRateMode, mp3.ChannelMode(channelMode), useQuality, quality)
+	return input.Mp3.Build(bitRateMode, bitRate, channelMode, useQuality, quality)
 }
 
 // parseIntValue parses value of key provided in the html form.

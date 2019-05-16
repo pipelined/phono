@@ -74,6 +74,18 @@ var (
 	}
 )
 
+// FilePump returns pump for provided file source. Type of the pump is determined by file extension.
+func FilePump(fileName string, rs io.ReadSeeker) (pipe.Pump, error) {
+	switch {
+	case HasExtension(fileName, Wav.Extensions):
+		return Wav.Pump(rs), nil
+	case HasExtension(fileName, Mp3.Extensions):
+		return Mp3.Pump(rs), nil
+	default:
+		return nil, fmt.Errorf("File has unsupported extension: %v", fileName)
+	}
+}
+
 // Pump returns wav pump with provided ReadSeeker.
 func (f wavFormat) Pump(rs io.ReadSeeker) pipe.Pump {
 	return &wav.Pump{

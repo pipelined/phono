@@ -54,7 +54,7 @@ func Convert(form input.ConvertForm, tempDir string) http.Handler {
 			defer f.Close()
 
 			// parse pump
-			pump, err := pump(handler.Filename, f)
+			pump, err := input.FilePump(handler.Filename, f)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
@@ -124,18 +124,6 @@ func convert(pump pipe.Pump, sink pipe.Sink) error {
 		return fmt.Errorf("Failed to execute pipe: %v", err)
 	}
 	return nil
-}
-
-// ParsePump returns pump defined as input for conversion.
-func pump(fileName string, rs io.ReadSeeker) (pipe.Pump, error) {
-	switch {
-	case input.HasExtension(fileName, input.Wav.Extensions):
-		return input.Wav.Pump(rs), nil
-	case input.HasExtension(fileName, input.Mp3.Extensions):
-		return input.Mp3.Pump(rs), nil
-	default:
-		return nil, fmt.Errorf("File has unsupported extension: %v", fileName)
-	}
 }
 
 // outFileName return output file name. It replaces input format extension with output.

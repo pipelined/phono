@@ -202,6 +202,7 @@ func parseIntValue(data url.Values, key, name string) (int, error) {
 func parseBoolValue(data url.Values, key, name string) (bool, error) {
 	str := data.Get(key)
 	if str == "" {
+		return false, nil
 	}
 
 	val, err := strconv.ParseBool(str)

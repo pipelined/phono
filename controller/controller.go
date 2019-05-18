@@ -60,7 +60,7 @@ func Convert(form input.ConvertForm, tempDir string) http.Handler {
 				return
 			}
 
-			// parse sink
+			// parse sink and validate parameters
 			buildFn, ext, err := form.ParseSink(r.Form)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -76,12 +76,10 @@ func Convert(form input.ConvertForm, tempDir string) http.Handler {
 			defer cleanUp(tempFile)
 
 			// convert file using temp file
-			err = convert(pump, buildFn(tempFile))
-			if err != nil {
+			if err = convert(pump, buildFn(tempFile)); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-
 			// reset temp file
 			_, err = tempFile.Seek(0, 0)
 			if err != nil {
@@ -113,7 +111,10 @@ func Convert(form input.ConvertForm, tempDir string) http.Handler {
 // convert using pump as the source and SinkBuilder as destination.
 func convert(pump pipe.Pump, sink pipe.Sink) error {
 	// build convert pipe
-	convert, err := pipe.New(1024, pipe.WithPump(pump), pipe.WithSinks(sink))
+	convert, err := pipe.New(1024,
+		pipe.WithPump(pump),
+		pipe.WithSinks(sink),
+	)
 	if err != nil {
 		return fmt.Errorf("Failed to build pipe: %v", err)
 	}

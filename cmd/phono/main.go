@@ -13,13 +13,14 @@ import (
 	"github.com/pipelined/phono/cmd"
 	"github.com/pipelined/phono/controller"
 	"github.com/pipelined/phono/input/form"
-
+	
 	"github.com/spf13/cobra"
 )
 
 const (
 	wavMaxSize = 10 * 1024 * 1024
 	mp3MaxSize = 1 * 1024 * 1024
+	bufferSize = 1024
 )
 
 var (
@@ -77,7 +78,7 @@ func serve(port int) {
 	// max sizes for different input formats.
 
 	// setting router rule
-	http.Handle("/", controller.Convert(form.Convert{WavMaxSize: wavMaxSize, Mp3MaxSize: mp3MaxSize}, dir))
+	http.Handle("/", controller.Convert(form.Convert{WavMaxSize: wavMaxSize, Mp3MaxSize: mp3MaxSize}, bufferSize, dir))
 	log.Printf("phono convert at: http://localhost%s\n", server.Addr)
 	if err := server.ListenAndServe(); err != http.ErrServerClosed {
 		log.Printf("HTTP server ListenAndServe error: %v", err)

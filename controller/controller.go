@@ -23,7 +23,7 @@ import (
 //	4. Create temp file
 //	5. Run conversion
 //	6. Send result file
-func Convert(form input.ConvertForm, tempDir string) http.Handler {
+func Convert(form input.ConvertForm, bufferSize int, tempDir string) http.Handler {
 	formData := form.Data()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -76,7 +76,7 @@ func Convert(form input.ConvertForm, tempDir string) http.Handler {
 			defer cleanUp(tempFile)
 
 			// convert file using temp file
-			if err = convert(pump, buildFn(tempFile)); err != nil {
+			if err = convert(bufferSize, pump, buildFn(tempFile)); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
@@ -109,9 +109,9 @@ func Convert(form input.ConvertForm, tempDir string) http.Handler {
 }
 
 // convert using pump as the source and SinkBuilder as destination.
-func convert(pump pipe.Pump, sink pipe.Sink) error {
+func convert(bufferSize int, pump pipe.Pump, sink pipe.Sink) error {
 	// build convert pipe
-	convert, err := pipe.New(1024,
+	convert, err := pipe.New(bufferSize,
 		pipe.WithPump(pump),
 		pipe.WithSinks(sink),
 	)

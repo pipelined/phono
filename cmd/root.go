@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var Root = &cobra.Command{
+var root = &cobra.Command{
 	Use:   "phono",
 	Short: "DSP pipeline",
 	Run: func(cmd *cobra.Command, args []string) {
@@ -16,7 +16,7 @@ var Root = &cobra.Command{
 }
 
 func Execute() {
-	if err := Root.Execute(); err != nil {
+	if err := root.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}

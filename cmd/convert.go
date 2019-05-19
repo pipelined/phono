@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"context"
@@ -10,10 +10,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/pipelined/phono/cmd"
 	"github.com/pipelined/phono/controller"
 	"github.com/pipelined/phono/input/form"
-	
+
 	"github.com/spf13/cobra"
 )
 
@@ -42,16 +41,15 @@ var (
 	}
 )
 
-func main() {
+func init() {
 	convertHTTPCmd.Flags().IntVar(&convertHTTPPort, "port", 8080, "Start convert http handler")
 	convertCmd.AddCommand(convertHTTPCmd)
-	cmd.Root.AddCommand(convertCmd)
-	cmd.Execute()
+	root.AddCommand(convertCmd)
 }
 
 func serve(port int) {
 	// temporary directory
-	dir, err := ioutil.TempDir(".", "phono")
+	dir, err := ioutil.TempDir("", "phono")
 	if err != nil {
 		log.Fatal(fmt.Sprintf("Failed to create temp folder: %v", err))
 	}

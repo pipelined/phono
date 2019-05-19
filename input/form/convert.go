@@ -3,7 +3,6 @@ package form
 import (
 	"bytes"
 	"fmt"
-	"mime"
 	"net/url"
 	"path"
 	"strconv"
@@ -17,21 +16,9 @@ import (
 type convertData struct {
 	Accept     string
 	OutFormats map[string]string
-	WavMime    string
-	Mp3Mime    string
 	Wav        interface{}
 	Mp3        interface{}
 	MaxSizes   map[string]int64
-}
-
-type extensionsFunc func() []string
-
-// ErrUnsupportedConfig is returned when unsupported configuraton passed.
-type ErrUnsupportedConfig string
-
-// Error returns error message.
-func (e ErrUnsupportedConfig) Error() string {
-	return string(e)
 }
 
 const (
@@ -60,8 +47,6 @@ func outFormats(exts ...string) map[string]string {
 
 var (
 	convertForm = convertData{
-		WavMime:    mime.TypeByExtension(input.Wav.DefaultExtension),
-		Mp3Mime:    mime.TypeByExtension(input.Mp3.DefaultExtension),
 		Accept:     strings.Join(append(input.Wav.Extensions, input.Mp3.Extensions...), ", "),
 		OutFormats: outFormats(input.Wav.DefaultExtension, input.Mp3.DefaultExtension),
 		Wav:        input.Wav,
@@ -117,7 +102,10 @@ func (Convert) ParseSink(data url.Values) (fn input.BuildFunc, ext string, err e
 	case input.Mp3.DefaultExtension:
 		fn, err = parseMp3Sink(data)
 	default:
-		err = ErrUnsupportedConfig(fmt.Sprintf("Unsupported format: %v", ext))
+		err = fmt.Errorf("Unsupported format: %v", ext)
+	}
+	if err != nil {
+		ext = ""
 	}
 	return
 }
@@ -187,12 +175,12 @@ func parseMp3Sink(data url.Values) (input.BuildFunc, error) {
 func parseIntValue(data url.Values, key, name string) (int, error) {
 	str := data.Get(key)
 	if str == "" {
-		return 0, ErrUnsupportedConfig(fmt.Sprintf("%s not provided", name))
+		return 0, fmt.Errorf("%s not provided", name)
 	}
 
 	val, err := strconv.Atoi(str)
 	if err != nil {
-		return 0, ErrUnsupportedConfig(fmt.Sprintf("Failed parsing %s %s: %v", name, str, err))
+		return 0, fmt.Errorf("Failed parsing %s %s: %v", name, str, err)
 	}
 	return val, nil
 }
@@ -207,7 +195,7 @@ func parseBoolValue(data url.Values, key, name string) (bool, error) {
 
 	val, err := strconv.ParseBool(str)
 	if err != nil {
-		return false, ErrUnsupportedConfig(fmt.Sprintf("Failed parsing %s %s: %v", name, str, err))
+		return false, fmt.Errorf("Failed parsing %s %s: %v", name, str, err)
 	}
 	return val, nil
 }

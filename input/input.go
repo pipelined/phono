@@ -78,18 +78,11 @@ var (
 func FilePump(fileName string, rs io.ReadSeeker) (pipe.Pump, error) {
 	switch {
 	case HasExtension(fileName, Wav.Extensions):
-		return Wav.Pump(rs), nil
+		return &wav.Pump{ReadSeeker: rs}, nil
 	case HasExtension(fileName, Mp3.Extensions):
-		return Mp3.Pump(rs), nil
+		return &mp3.Pump{Reader: rs}, nil
 	default:
 		return nil, fmt.Errorf("File has unsupported extension: %v", fileName)
-	}
-}
-
-// Pump returns wav pump with provided ReadSeeker.
-func (f wavFormat) Pump(rs io.ReadSeeker) pipe.Pump {
-	return &wav.Pump{
-		ReadSeeker: rs,
 	}
 }
 
@@ -106,13 +99,6 @@ func (f wavFormat) Build(bitDepth int) (BuildFunc, error) {
 			WriteSeeker: ws,
 		}
 	}, nil
-}
-
-// Pump returns mp3 pump with provided Reader.
-func (f mp3Format) Pump(rs io.Reader) pipe.Pump {
-	return &mp3.Pump{
-		Reader: rs,
-	}
 }
 
 // Build validates all parameters required to build mp3 sink. If valid, build closure is returned.

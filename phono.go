@@ -4,6 +4,6 @@ import (
 	"github.com/pipelined/phono/cmd"
 )
 
-func main(){
+func main() {
 	cmd.Execute()
 }

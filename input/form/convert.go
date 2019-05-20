@@ -22,7 +22,8 @@ type convertData struct {
 }
 
 const (
-	fileKey = "input-file"
+	// FileKey is the id of the file input in the HTML form.
+	FileKey = "input-file"
 )
 
 func maxSizes(wavMaxSize, mp3MaxSize int64) map[string]int64 {
@@ -89,7 +90,7 @@ func (c Convert) InputMaxSize(url string) (int64, error) {
 
 // FileKey returns a name of form file value.
 func (Convert) FileKey() string {
-	return fileKey
+	return FileKey
 }
 
 // ParseSink provided via form.

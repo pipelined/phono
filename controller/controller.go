@@ -14,8 +14,7 @@ import (
 	"github.com/pipelined/pipe"
 )
 
-// Convert converts form files to the format provided y form.
-// To limit maximum input file size, pass map of extensions with limits.
+// Convert form files to the format provided by form.
 // Process request steps:
 //	1. Retrieve input format from URL
 //	2. Use http.MaxBytesReader to avoid memory abuse
@@ -64,7 +63,7 @@ func Convert(form input.ConvertForm, bufferSize int, tempDir string) http.Handle
 			}
 
 			// parse sink and validate parameters
-			buildFn, ext, err := form.ParseSink(r.Form)
+			buildFn, ext, err := form.ParseSink(r.MultipartForm.Value)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return

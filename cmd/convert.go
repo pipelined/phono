@@ -16,12 +16,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	wavMaxSize = 10 * 1024 * 1024
-	mp3MaxSize = 1 * 1024 * 1024
-	bufferSize = 1024
-)
-
 var (
 	convertCmd = &cobra.Command{
 		Use:   "convert",
@@ -31,25 +25,31 @@ var (
 		},
 	}
 
-	convertHTTPPort int
-	convertHTTPCmd  = &cobra.Command{
+	convertHTTP = struct {
+		port       int
+		tempDir    string
+		bufferSize int
+	}{}
+	convertHTTPCmd = &cobra.Command{
 		Use:   "http",
 		Short: "Spin up the http service to convert files",
 		Run: func(cmd *cobra.Command, args []string) {
-			serve(convertHTTPPort)
+			serve(convertHTTP.port, convertHTTP.tempDir, convertHTTP.bufferSize)
 		},
 	}
 )
 
 func init() {
-	convertHTTPCmd.Flags().IntVar(&convertHTTPPort, "port", 8080, "Start convert http handler")
+	convertHTTPCmd.Flags().IntVar(&convertHTTP.port, "port", 8080, "port to use")
+	convertHTTPCmd.Flags().StringVar(&convertHTTP.tempDir, "tempdir", "os.TempDir", "directory for temp files")
+	convertHTTPCmd.Flags().IntVar(&convertHTTP.bufferSize, "buffersize", 1024, "buffer size")
 	convertCmd.AddCommand(convertHTTPCmd)
-	root.AddCommand(convertCmd)
+	rootCmd.AddCommand(convertCmd)
 }
 
-func serve(port int) {
+func serve(port int, tempDir string, bufferSize int) {
 	// temporary directory
-	dir, err := ioutil.TempDir("", "phono")
+	dir, err := ioutil.TempDir(tempDir, "phono")
 	if err != nil {
 		log.Fatal(fmt.Sprintf("Failed to create temp folder: %v", err))
 	}
@@ -58,7 +58,6 @@ func serve(port int) {
 	server := http.Server{Addr: fmt.Sprintf(":%d", port)}
 	go func() {
 		sigint := make(chan os.Signal, 1)
-
 		// interrupt and sigterm signal
 		signal.Notify(sigint, os.Interrupt)
 		signal.Notify(sigint, syscall.SIGTERM)
@@ -73,10 +72,8 @@ func serve(port int) {
 		close(interrupt)
 	}()
 
-	// max sizes for different input formats.
-
 	// setting router rule
-	http.Handle("/", controller.Convert(form.Convert{WavMaxSize: wavMaxSize, Mp3MaxSize: mp3MaxSize}, bufferSize, dir))
+	http.Handle("/", controller.Convert(form.Convert{}, bufferSize, dir))
 	log.Printf("phono convert at: http://localhost%s\n", server.Addr)
 	if err := server.ListenAndServe(); err != http.ErrServerClosed {
 		log.Printf("HTTP server ListenAndServe error: %v", err)

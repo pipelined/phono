@@ -35,7 +35,10 @@ func Convert(form input.ConvertForm, bufferSize int, tempDir string) http.Handle
 		case http.MethodPost:
 			// get max size for the format
 			if maxSize, err := form.InputMaxSize(r.URL.Path); err == nil {
-				r.Body = http.MaxBytesReader(w, r.Body, maxSize)
+				// check if limit is defined
+				if maxSize > 0 {
+					r.Body = http.MaxBytesReader(w, r.Body, maxSize)
+				}
 				// check max size
 				if err := r.ParseMultipartForm(maxSize); err != nil {
 					http.Error(w, err.Error(), http.StatusBadRequest)

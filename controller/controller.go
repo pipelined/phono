@@ -1,3 +1,4 @@
+// Package controller provides handlers to process user input and manipulate with pipes.
 package controller
 
 import (

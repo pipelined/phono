@@ -1,4 +1,4 @@
-// Package input provides types to parse user input of pipe components.
+// Package input provides types to parse user input for pipe components.
 package input
 
 import (

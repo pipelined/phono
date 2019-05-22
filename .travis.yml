@@ -11,6 +11,16 @@ env:
     - GO111MODULE=on
     - CODECOV_TOKEN="fda83ffd-7216-4c61-a060-ed9cb8596f6e"
 
+cache:
+  directories:
+    - $HOME/Library/Caches/Homebrew
+
+before_cache:
+  - brew cleanup
+
+before_install:
+  - brew install lame
+
 script: go test -race -coverprofile=coverage.txt -covermode=atomic ./...
 
 after_success:

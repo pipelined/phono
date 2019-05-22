@@ -41,7 +41,7 @@ var (
 
 func init() {
 	convertHTTPCmd.Flags().IntVar(&convertHTTP.port, "port", 8080, "port to use")
-	convertHTTPCmd.Flags().StringVar(&convertHTTP.tempDir, "tempdir", "os.TempDir", "directory for temp files")
+	convertHTTPCmd.Flags().StringVar(&convertHTTP.tempDir, "tempdir", "", "directory for temp files. uses os.TempDir if empty")
 	convertHTTPCmd.Flags().IntVar(&convertHTTP.bufferSize, "buffersize", 1024, "buffer size")
 	convertCmd.AddCommand(convertHTTPCmd)
 	rootCmd.AddCommand(convertCmd)

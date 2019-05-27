@@ -156,8 +156,6 @@ func (f mp3Format) bitRate(v int) error {
 	return nil
 }
 
-// func (f mp3Format) BitRateMode(bitRateMode string, value int) mp3.BitRateMode {}
-
 // HasExtension validates if filename has one of passed extensions.
 // Filename is lower-cased before comparison.
 func HasExtension(fileName string, exts []string) bool {

@@ -14,21 +14,21 @@ import (
 )
 
 var (
-	convertWav = struct {
+	encodeWav = struct {
 		bufferSize int
 		bitDepth   int
 	}{}
-	convertWavCmd = &cobra.Command{
+	encodeWavCmd = &cobra.Command{
 		Use:   "wav",
-		Short: "Convert audio files to wav format",
+		Short: "Encode audio files to wav format",
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			buildFn, err := input.Wav.Build(convertWav.bitDepth)
+			buildFn, err := input.Wav.Build(encodeWav.bitDepth)
 			if err != nil {
 				log.Print(err)
 				os.Exit(1)
 			}
-			walkFn := convertToWav(convertWav.bufferSize, buildFn, input.Wav.DefaultExtension)
+			walkFn := encodeToWav(encodeWav.bufferSize, buildFn, input.Wav.DefaultExtension)
 			for _, path := range args {
 				fmt.Printf("Dir: %v", path)
 				err := filepath.Walk(path, walkFn)
@@ -41,12 +41,12 @@ var (
 )
 
 func init() {
-	convertCmd.AddCommand(convertWavCmd)
-	convertWavCmd.Flags().IntVar(&convertWav.bitDepth, "bitdepth", 24, "bit depth")
-	convertWavCmd.Flags().IntVar(&convertWav.bufferSize, "buffersize", 1024, "buffer size")
+	encodeCmd.AddCommand(encodeWavCmd)
+	encodeWavCmd.Flags().IntVar(&encodeWav.bitDepth, "bitdepth", 24, "bit depth")
+	encodeWavCmd.Flags().IntVar(&encodeWav.bufferSize, "buffersize", 1024, "buffer size")
 }
 
-func convertToWav(bufferSize int, buildFn input.BuildFunc, ext string) filepath.WalkFunc {
+func encodeToWav(bufferSize int, buildFn input.BuildFunc, ext string) filepath.WalkFunc {
 	return func(path string, file os.FileInfo, err error) error {
 		if err != nil {
 			log.Printf("Error during walk: %v\n", err)
@@ -69,8 +69,8 @@ func convertToWav(bufferSize int, buildFn input.BuildFunc, ext string) filepath.
 		if err != nil {
 			log.Printf("Error creating output file: %v\n", err)
 		}
-		// build convert pipe
-		convert, err := pipe.New(bufferSize,
+		// build encode pipe
+		encode, err := pipe.New(bufferSize,
 			pipe.WithPump(pump),
 			pipe.WithSinks(buildFn(result)),
 		)
@@ -79,7 +79,7 @@ func convertToWav(bufferSize int, buildFn input.BuildFunc, ext string) filepath.
 		}
 
 		// run conversion
-		err = pipe.Wait(convert.Run())
+		err = pipe.Wait(encode.Run())
 		if err != nil {
 			return fmt.Errorf("Failed to execute pipe: %v", err)
 		}

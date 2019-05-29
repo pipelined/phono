@@ -17,25 +17,25 @@ import (
 )
 
 var (
-	convertHTTP = struct {
+	encodeHTTP = struct {
 		port       int
 		tempDir    string
 		bufferSize int
 	}{}
-	convertHTTPCmd = &cobra.Command{
+	encodeHTTPCmd = &cobra.Command{
 		Use:   "http",
-		Short: "Spin up the http service to convert files",
+		Short: "Spin up the http service to encode files",
 		Run: func(cmd *cobra.Command, args []string) {
-			serve(convertHTTP.port, convertHTTP.tempDir, convertHTTP.bufferSize)
+			serve(encodeHTTP.port, encodeHTTP.tempDir, encodeHTTP.bufferSize)
 		},
 	}
 )
 
 func init() {
-	convertCmd.AddCommand(convertHTTPCmd)
-	convertHTTPCmd.Flags().IntVar(&convertHTTP.port, "port", 8080, "port to use")
-	convertHTTPCmd.Flags().StringVar(&convertHTTP.tempDir, "tempdir", "", "directory for temp files. defaults to os.TempDir if empty")
-	convertHTTPCmd.Flags().IntVar(&convertHTTP.bufferSize, "buffersize", 1024, "buffer size")
+	encodeCmd.AddCommand(encodeHTTPCmd)
+	encodeHTTPCmd.Flags().IntVar(&encodeHTTP.port, "port", 8080, "port to use")
+	encodeHTTPCmd.Flags().StringVar(&encodeHTTP.tempDir, "tempdir", "", "directory for temp files. defaults to os.TempDir if empty")
+	encodeHTTPCmd.Flags().IntVar(&encodeHTTP.bufferSize, "buffersize", 1024, "buffer size")
 }
 
 func serve(port int, tempDir string, bufferSize int) {
@@ -64,8 +64,8 @@ func serve(port int, tempDir string, bufferSize int) {
 	}()
 
 	// setting router rule
-	http.Handle("/", controller.Convert(form.Convert{}, bufferSize, dir))
-	log.Printf("phono convert at: http://localhost%s\n", server.Addr)
+	http.Handle("/", controller.Encode(form.Encode{}, bufferSize, dir))
+	log.Printf("phono encode at: http://localhost%s\n", server.Addr)
 	if err := server.ListenAndServe(); err != http.ErrServerClosed {
 		log.Printf("HTTP server ListenAndServe error: %v", err)
 	}

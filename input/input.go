@@ -15,8 +15,8 @@ import (
 )
 
 type (
-	// ConvertForm provides html form to the user. The form contains all information needed for conversion.
-	ConvertForm interface {
+	// EncodeForm provides html form to the user. The form contains all information needed for conversion.
+	EncodeForm interface {
 		Data() []byte
 		InputMaxSize(url string) (int64, error)
 		FileKey() string

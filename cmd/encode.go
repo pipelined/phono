@@ -5,9 +5,9 @@ import (
 )
 
 var (
-	convertCmd = &cobra.Command{
-		Use:   "convert",
-		Short: "Convert audio files",
+	encodeCmd = &cobra.Command{
+		Use:   "encode",
+		Short: "Encode audio files",
 		Run: func(cmd *cobra.Command, args []string) {
 			cmd.Help()
 		},
@@ -15,5 +15,5 @@ var (
 )
 
 func init() {
-	rootCmd.AddCommand(convertCmd)
+	rootCmd.AddCommand(encodeCmd)
 }

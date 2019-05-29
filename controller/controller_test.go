@@ -55,9 +55,9 @@ func newFileUploadRequest(uri string, params map[string]string, fileKey, filePat
 	return req
 }
 
-func TestConvert(t *testing.T) {
+func TestEncode(t *testing.T) {
 	tests := []struct {
-		form           form.Convert
+		form           form.Encode
 		r              *http.Request
 		expectedStatus int
 		tempDir        string
@@ -92,7 +92,7 @@ func TestConvert(t *testing.T) {
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
-			form: form.Convert{WavMaxSize: 10},
+			form: form.Encode{WavMaxSize: 10},
 			r: newFileUploadRequest(
 				"test/.wav",
 				map[string]string{
@@ -151,7 +151,7 @@ func TestConvert(t *testing.T) {
 	}
 	bufferSize := 1024
 	for _, test := range tests {
-		h := controller.Convert(test.form, bufferSize, test.tempDir)
+		h := controller.Encode(test.form, bufferSize, test.tempDir)
 		assert.NotNil(t, h)
 
 		rr := httptest.NewRecorder()
@@ -160,8 +160,8 @@ func TestConvert(t *testing.T) {
 	}
 }
 
-func TestConvertForm(t *testing.T) {
-	h := controller.Convert(form.Convert{}, 1024, "")
+func TestEncodeForm(t *testing.T) {
+	h := controller.Encode(form.Encode{}, 1024, "")
 	assert.NotNil(t, h)
 
 	r, _ := http.NewRequest(http.MethodGet, "test/", nil)

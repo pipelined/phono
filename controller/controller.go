@@ -15,7 +15,7 @@ import (
 	"github.com/pipelined/pipe"
 )
 
-// Convert form files to the format provided by form.
+// Encode form files to the format provided by form.
 // Process request steps:
 //	1. Retrieve input format from URL
 //	2. Use http.MaxBytesReader to avoid memory abuse
@@ -23,7 +23,7 @@ import (
 //	4. Create temp file
 //	5. Run conversion
 //	6. Send result file
-func Convert(form input.ConvertForm, bufferSize int, tempDir string) http.Handler {
+func Encode(form input.EncodeForm, bufferSize int, tempDir string) http.Handler {
 	formData := form.Data()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -78,8 +78,8 @@ func Convert(form input.ConvertForm, bufferSize int, tempDir string) http.Handle
 			}
 			defer cleanUp(tempFile)
 
-			// convert file using temp file
-			if err = convert(bufferSize, pump, buildFn(tempFile)); err != nil {
+			// encode file using temp file
+			if err = encode(bufferSize, pump, buildFn(tempFile)); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
@@ -111,10 +111,10 @@ func Convert(form input.ConvertForm, bufferSize int, tempDir string) http.Handle
 	})
 }
 
-// convert using pump as the source and SinkBuilder as destination.
-func convert(bufferSize int, pump pipe.Pump, sink pipe.Sink) error {
-	// build convert pipe
-	convert, err := pipe.New(bufferSize,
+// encode using pump as the source and SinkBuilder as destination.
+func encode(bufferSize int, pump pipe.Pump, sink pipe.Sink) error {
+	// build encode pipe
+	encode, err := pipe.New(bufferSize,
 		pipe.WithPump(pump),
 		pipe.WithSinks(sink),
 	)
@@ -123,7 +123,7 @@ func convert(bufferSize int, pump pipe.Pump, sink pipe.Sink) error {
 	}
 
 	// run conversion
-	err = pipe.Wait(convert.Run())
+	err = pipe.Wait(encode.Run())
 	if err != nil {
 		return fmt.Errorf("Failed to execute pipe: %v", err)
 	}

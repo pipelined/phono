@@ -12,8 +12,8 @@ import (
 	"github.com/pipelined/phono/input"
 )
 
-// convertData provides a data for convert form, so user can define conversion parameters.
-type convertData struct {
+// encodeData provides a data for encode form, so user can define conversion parameters.
+type encodeData struct {
 	Accept     string
 	OutFormats map[string]string
 	Wav        interface{}
@@ -47,36 +47,36 @@ func outFormats(exts ...string) map[string]string {
 }
 
 var (
-	convertForm = convertData{
+	encodeForm = encodeData{
 		Accept:     strings.Join(append(input.Wav.Extensions, input.Mp3.Extensions...), ", "),
 		OutFormats: outFormats(input.Wav.DefaultExtension, input.Mp3.DefaultExtension),
 		Wav:        input.Wav,
 		Mp3:        input.Mp3,
 	}
 
-	convertTmpl = template.Must(template.New("convert").Parse(convertHTML))
+	encodeTmpl = template.Must(template.New("encode").Parse(encodeHTML))
 )
 
-// Convert provides user interaction via http form.
-type Convert struct {
+// Encode provides user interaction via http form.
+type Encode struct {
 	WavMaxSize int64
 	Mp3MaxSize int64
 }
 
 // Data returns serialized form data, ready to be served.
-func (c Convert) Data() []byte {
-	d := convertForm
+func (c Encode) Data() []byte {
+	d := encodeForm
 	d.MaxSizes = maxSizes(c.WavMaxSize, c.Mp3MaxSize)
 
 	var b bytes.Buffer
-	if err := convertTmpl.Execute(&b, d); err != nil {
-		panic(fmt.Sprintf("Failed to parse convert template: %v", err))
+	if err := encodeTmpl.Execute(&b, d); err != nil {
+		panic(fmt.Sprintf("Failed to parse encode template: %v", err))
 	}
 	return b.Bytes()
 }
 
 // InputMaxSize of file from http request.
-func (c Convert) InputMaxSize(url string) (int64, error) {
+func (c Encode) InputMaxSize(url string) (int64, error) {
 	ext := strings.ToLower(path.Base(url))
 	switch ext {
 	case input.Mp3.DefaultExtension:
@@ -89,13 +89,13 @@ func (c Convert) InputMaxSize(url string) (int64, error) {
 }
 
 // FileKey returns a name of form file value.
-func (Convert) FileKey() string {
+func (Encode) FileKey() string {
 	return FileKey
 }
 
 // ParseSink provided via form.
 // This function should return extensions, sinkbuilder
-func (Convert) ParseSink(data url.Values) (fn input.BuildFunc, ext string, err error) {
+func (Encode) ParseSink(data url.Values) (fn input.BuildFunc, ext string, err error) {
 	ext = data.Get("format")
 	switch ext {
 	case input.Wav.DefaultExtension:
@@ -201,7 +201,7 @@ func parseBoolValue(data url.Values, key, name string) (bool, error) {
 	return val, nil
 }
 
-const convertHTML = `
+const encodeHTML = `
 <html>
 <head>
     <style>
@@ -292,7 +292,7 @@ const convertHTML = `
             document.getElementById(id).style.display = mode;
         }
         document.addEventListener('DOMContentLoaded', function(event) {
-            document.getElementById('convert').reset();
+            document.getElementById('encode').reset();
             // base form handlers
             document.getElementById('input-file').addEventListener('change', onInputFileChange);
             document.getElementById('output-format').addEventListener('change', onOutputFormatChange);
@@ -331,10 +331,10 @@ const convertHTML = `
             }
         }
         function onSubmitClick(){
-            var convert = document.getElementById('convert');
+            var encode = document.getElementById('encode');
             var file = getFile();
             var ext = getFileExtension(getFileName(file));
-            convert.action = ext;
+            encode.action = ext;
             var size = file.files[0].size;
             switch (ext) {
             {{ range $ext, $maxSize := .MaxSizes }}
@@ -346,14 +346,14 @@ const convertHTML = `
                 break;
             {{ end }}
             }  
-            convert.submit();  
+            encode.submit();  
         }
     </script> 
 </head>
 <body>
     <div class="container">
-        <h2>phono convert</h1>
-        <form id="convert" enctype="multipart/form-data" method="post">
+        <h2>phono encode</h1>
+        <form id="encode" enctype="multipart/form-data" method="post">
         <div class="file">
             <input id="input-file" type="file" name="input-file" accept="{{.Accept}}"/>
             <label id="input-file-label" for="input-file">select file</label>
@@ -411,7 +411,7 @@ const convertHTML = `
         </div>
         </form>
         <div class="submit" style="display:none">
-            <button id="submit-button" type="button">convert</button> 
+            <button id="submit-button" type="button">encode</button> 
         </div>
         <div class="footer">
             <div class="container">

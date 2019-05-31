@@ -77,6 +77,12 @@ func TestBuildMp3(t *testing.T) {
 			useQuality:  true,
 		},
 		{
+			bitRateMode: "vbr",
+			bitRate:     1,
+			channelMode: 1,
+			useQuality:  true,
+		},
+		{
 			bitRateMode: input.Mp3.CBR,
 			bitRate:     320,
 			channelMode: 2,

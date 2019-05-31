@@ -109,7 +109,7 @@ func (f mp3Format) Build(bitRateMode string, bitRate, channelMode int, useQualit
 	}
 
 	var brm mp3.BitRateMode
-	switch bitRateMode {
+	switch strings.ToUpper(bitRateMode) {
 	case f.VBR:
 		if bitRate < 0 || bitRate > 9 {
 			return nil, fmt.Errorf("VBR quality %v is not supported", bitRate)
@@ -126,7 +126,7 @@ func (f mp3Format) Build(bitRateMode string, bitRate, channelMode int, useQualit
 		}
 		brm = mp3.ABR(bitRate)
 	default:
-		return nil, fmt.Errorf("VBR mode %v is not supported", bitRateMode)
+		return nil, fmt.Errorf("Bit rate mode %v is not supported", bitRateMode)
 	}
 
 	if useQuality {

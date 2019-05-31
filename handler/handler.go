@@ -1,5 +1,5 @@
-// Package controller provides handlers to process user input and manipulate with pipes.
-package controller
+// Package handler provides handlers to process user input and manipulate with pipes.
+package handler
 
 import (
 	"fmt"

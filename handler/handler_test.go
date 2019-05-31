@@ -1,4 +1,4 @@
-package controller_test
+package handler_test
 
 import (
 	"bytes"
@@ -13,7 +13,7 @@ import (
 
 	"golang.org/x/net/html"
 
-	"github.com/pipelined/phono/controller"
+	"github.com/pipelined/phono/handler"
 	"github.com/pipelined/phono/input/form"
 	"github.com/stretchr/testify/assert"
 )
@@ -151,7 +151,7 @@ func TestEncode(t *testing.T) {
 	}
 	bufferSize := 1024
 	for _, test := range tests {
-		h := controller.Encode(test.form, bufferSize, test.tempDir)
+		h := handler.Encode(test.form, bufferSize, test.tempDir)
 		assert.NotNil(t, h)
 
 		rr := httptest.NewRecorder()
@@ -161,7 +161,7 @@ func TestEncode(t *testing.T) {
 }
 
 func TestEncodeForm(t *testing.T) {
-	h := controller.Encode(form.Encode{}, 1024, "")
+	h := handler.Encode(form.Encode{}, 1024, "")
 	assert.NotNil(t, h)
 
 	r, _ := http.NewRequest(http.MethodGet, "test/", nil)

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/pipelined/phono/input"
+	"github.com/pipelined/phono/file"
 )
 
 // encodeData provides a data for encode form, so user can define conversion parameters.
@@ -28,10 +28,10 @@ const (
 
 func maxSizes(wavMaxSize, mp3MaxSize int64) map[string]int64 {
 	m := make(map[string]int64)
-	for _, ext := range input.Mp3.Extensions {
+	for _, ext := range file.Mp3.Extensions {
 		m[ext] = mp3MaxSize
 	}
-	for _, ext := range input.Wav.Extensions {
+	for _, ext := range file.Wav.Extensions {
 		m[ext] = wavMaxSize
 	}
 	return m
@@ -48,10 +48,10 @@ func outFormats(exts ...string) map[string]string {
 
 var (
 	encodeForm = encodeData{
-		Accept:     strings.Join(append(input.Wav.Extensions, input.Mp3.Extensions...), ", "),
-		OutFormats: outFormats(input.Wav.DefaultExtension, input.Mp3.DefaultExtension),
-		Wav:        input.Wav,
-		Mp3:        input.Mp3,
+		Accept:     strings.Join(append(file.Wav.Extensions, file.Mp3.Extensions...), ", "),
+		OutFormats: outFormats(file.Wav.DefaultExtension, file.Mp3.DefaultExtension),
+		Wav:        file.Wav,
+		Mp3:        file.Mp3,
 	}
 
 	encodeTmpl = template.Must(template.New("encode").Parse(encodeHTML))
@@ -79,9 +79,9 @@ func (c Encode) Data() []byte {
 func (c Encode) InputMaxSize(url string) (int64, error) {
 	ext := strings.ToLower(path.Base(url))
 	switch ext {
-	case input.Mp3.DefaultExtension:
+	case file.Mp3.DefaultExtension:
 		return c.Mp3MaxSize, nil
-	case input.Wav.DefaultExtension:
+	case file.Wav.DefaultExtension:
 		return c.WavMaxSize, nil
 	default:
 		return 0, fmt.Errorf("Format %s not supported", ext)
@@ -95,12 +95,12 @@ func (Encode) FileKey() string {
 
 // ParseSink provided via form.
 // This function should return extensions, sinkbuilder
-func (Encode) ParseSink(data url.Values) (fn input.BuildFunc, ext string, err error) {
+func (Encode) ParseSink(data url.Values) (fn file.BuildSinkFunc, ext string, err error) {
 	ext = data.Get("format")
 	switch ext {
-	case input.Wav.DefaultExtension:
+	case file.Wav.DefaultExtension:
 		fn, err = parseWavSink(data)
-	case input.Mp3.DefaultExtension:
+	case file.Mp3.DefaultExtension:
 		fn, err = parseMp3Sink(data)
 	default:
 		err = fmt.Errorf("Unsupported format: %v", ext)
@@ -111,16 +111,16 @@ func (Encode) ParseSink(data url.Values) (fn input.BuildFunc, ext string, err er
 	return
 }
 
-func parseWavSink(data url.Values) (input.BuildFunc, error) {
+func parseWavSink(data url.Values) (file.BuildSinkFunc, error) {
 	// try to get bit depth
 	bitDepth, err := parseIntValue(data, "wav-bit-depth", "bit depth")
 	if err != nil {
 		return nil, err
 	}
-	return input.Wav.Build(bitDepth)
+	return file.Wav.BuildSink(bitDepth)
 }
 
-func parseMp3Sink(data url.Values) (input.BuildFunc, error) {
+func parseMp3Sink(data url.Values) (file.BuildSinkFunc, error) {
 	// try to get channel mode
 	channelMode, err := parseIntValue(data, "mp3-channel-mode", "channel mode")
 	if err != nil {
@@ -135,19 +135,19 @@ func parseMp3Sink(data url.Values) (input.BuildFunc, error) {
 
 	var bitRate int
 	switch bitRateMode {
-	case input.Mp3.VBR:
+	case file.Mp3.VBR:
 		// try to get vbr quality
 		bitRate, err = parseIntValue(data, "mp3-vbr-quality", "vbr quality")
 		if err != nil {
 			return nil, err
 		}
-	case input.Mp3.CBR:
+	case file.Mp3.CBR:
 		// try to get bitrate
 		bitRate, err = parseIntValue(data, "mp3-bit-rate", "bit rate")
 		if err != nil {
 			return nil, err
 		}
-	case input.Mp3.ABR:
+	case file.Mp3.ABR:
 		// try to get bitrate
 		bitRate, err = parseIntValue(data, "mp3-bit-rate", "bit rate")
 		if err != nil {
@@ -168,7 +168,7 @@ func parseMp3Sink(data url.Values) (input.BuildFunc, error) {
 		}
 	}
 
-	return input.Mp3.Build(bitRateMode, bitRate, channelMode, useQuality, quality)
+	return file.Mp3.BuildSink(bitRateMode, bitRate, channelMode, useQuality, quality)
 }
 
 // parseIntValue parses value of key provided in the html form.
@@ -191,6 +191,7 @@ func parseIntValue(data url.Values, key, name string) (int, error) {
 func parseBoolValue(data url.Values, key, name string) (bool, error) {
 	str := data.Get(key)
 	if str == "" {
+
 		return false, nil
 	}
 

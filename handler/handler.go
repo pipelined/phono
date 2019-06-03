@@ -8,11 +8,22 @@ import (
 	"log"
 	"mime"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 
-	"github.com/pipelined/phono/input"
-	"github.com/pipelined/pipe"
+	"github.com/pipelined/phono/file"
+	"github.com/pipelined/phono/pipe"
+)
+
+type (
+	// EncodeForm provides html form to the user. The form contains all information needed for conversion.
+	EncodeForm interface {
+		Data() []byte
+		InputMaxSize(url string) (int64, error)
+		FileKey() string
+		ParseSink(data url.Values) (file.BuildSinkFunc, string, error)
+	}
 )
 
 // Encode form files to the format provided by form.
@@ -23,7 +34,7 @@ import (
 //	4. Create temp file
 //	5. Run conversion
 //	6. Send result file
-func Encode(form input.EncodeForm, bufferSize int, tempDir string) http.Handler {
+func Encode(form EncodeForm, bufferSize int, tempDir string) http.Handler {
 	formData := form.Data()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -57,7 +68,7 @@ func Encode(form input.EncodeForm, bufferSize int, tempDir string) http.Handler 
 			defer f.Close()
 
 			// parse pump
-			pump, err := input.FilePump(handler.Filename, f)
+			pump, err := file.Pump(handler.Filename, f)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
@@ -79,7 +90,7 @@ func Encode(form input.EncodeForm, bufferSize int, tempDir string) http.Handler 
 			defer cleanUp(tempFile)
 
 			// encode file using temp file
-			if err = encode(bufferSize, pump, buildFn(tempFile)); err != nil {
+			if err = pipe.Encode(r.Context(), bufferSize, pump, buildFn(tempFile)); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
@@ -109,25 +120,6 @@ func Encode(form input.EncodeForm, bufferSize int, tempDir string) http.Handler 
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	})
-}
-
-// encode using pump as the source and SinkBuilder as destination.
-func encode(bufferSize int, pump pipe.Pump, sink pipe.Sink) error {
-	// build encode pipe
-	encode, err := pipe.New(bufferSize,
-		pipe.WithPump(pump),
-		pipe.WithSinks(sink),
-	)
-	if err != nil {
-		return fmt.Errorf("Failed to build pipe: %v", err)
-	}
-
-	// run conversion
-	err = pipe.Wait(encode.Run())
-	if err != nil {
-		return fmt.Errorf("Failed to execute pipe: %v", err)
-	}
-	return nil
 }
 
 // outFileName return output file name. It replaces input format extension with output.

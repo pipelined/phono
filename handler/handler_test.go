@@ -13,8 +13,8 @@ import (
 
 	"golang.org/x/net/html"
 
+	"github.com/pipelined/phono/form"
 	"github.com/pipelined/phono/handler"
-	"github.com/pipelined/phono/input/form"
 	"github.com/stretchr/testify/assert"
 )
 

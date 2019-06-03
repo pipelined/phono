@@ -12,8 +12,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/pipelined/phono/form"
 	"github.com/pipelined/phono/handler"
-	"github.com/pipelined/phono/input/form"
 )
 
 var (

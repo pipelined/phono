@@ -1,9 +1,9 @@
-package input_test
+package file_test
 
 import (
 	"testing"
 
-	"github.com/pipelined/phono/input"
+	"github.com/pipelined/phono/file"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,7 +25,7 @@ func TestFilePump(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		pump, err := input.FilePump(test.fileName, nil)
+		pump, err := file.Pump(test.fileName, nil)
 		if test.negative {
 			assert.NotNil(t, err)
 		} else {
@@ -48,7 +48,7 @@ func TestBuildWav(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		buildFn, err := input.Wav.Build(test.bitDepth)
+		buildFn, err := file.Wav.BuildSink(test.bitDepth)
 		if test.negative {
 			assert.NotNil(t, err)
 			assert.Nil(t, buildFn)
@@ -71,7 +71,7 @@ func TestBuildMp3(t *testing.T) {
 		negative    bool
 	}{
 		{
-			bitRateMode: input.Mp3.VBR,
+			bitRateMode: file.Mp3.VBR,
 			bitRate:     1,
 			channelMode: 1,
 			useQuality:  true,
@@ -83,12 +83,12 @@ func TestBuildMp3(t *testing.T) {
 			useQuality:  true,
 		},
 		{
-			bitRateMode: input.Mp3.CBR,
+			bitRateMode: file.Mp3.CBR,
 			bitRate:     320,
 			channelMode: 2,
 		},
 		{
-			bitRateMode: input.Mp3.ABR,
+			bitRateMode: file.Mp3.ABR,
 			bitRate:     192,
 			channelMode: 1,
 			useQuality:  true,
@@ -98,34 +98,34 @@ func TestBuildMp3(t *testing.T) {
 			negative:    true,
 		},
 		{
-			bitRateMode: input.Mp3.VBR,
+			bitRateMode: file.Mp3.VBR,
 			bitRate:     10,
 			negative:    true,
 		},
 		{
-			bitRateMode: input.Mp3.CBR,
+			bitRateMode: file.Mp3.CBR,
 			bitRate:     1,
 			negative:    true,
 		},
 		{
-			bitRateMode: input.Mp3.ABR,
+			bitRateMode: file.Mp3.ABR,
 			bitRate:     1,
 			negative:    true,
 		},
 		{
-			bitRateMode: input.Mp3.VBR,
-			bitRate:     1,
-			channelMode: 100,
-			negative:    true,
-		},
-		{
-			bitRateMode: input.Mp3.VBR,
+			bitRateMode: file.Mp3.VBR,
 			bitRate:     1,
 			channelMode: 100,
 			negative:    true,
 		},
 		{
-			bitRateMode: input.Mp3.VBR,
+			bitRateMode: file.Mp3.VBR,
+			bitRate:     1,
+			channelMode: 100,
+			negative:    true,
+		},
+		{
+			bitRateMode: file.Mp3.VBR,
 			bitRate:     1,
 			channelMode: 1,
 			useQuality:  true,
@@ -134,7 +134,7 @@ func TestBuildMp3(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		buildFn, err := input.Mp3.Build(
+		buildFn, err := file.Mp3.BuildSink(
 			test.bitRateMode,
 			test.bitRate,
 			test.channelMode,

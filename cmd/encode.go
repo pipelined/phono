@@ -1,15 +1,17 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
-	"github.com/spf13/cobra"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
 
-	"github.com/pipelined/phono/input"
-	"github.com/pipelined/pipe"
+	"github.com/spf13/cobra"
+
+	"github.com/pipelined/phono/file"
+	"github.com/pipelined/phono/pipe"
 )
 
 var (
@@ -26,12 +28,12 @@ func init() {
 	rootCmd.AddCommand(encodeCmd)
 }
 
-func encodeFiles(bufferSize int, buildFn input.BuildFunc, ext string) filepath.WalkFunc {
-	return func(path string, file os.FileInfo, err error) error {
+func encodeFiles(bufferSize int, buildFn file.BuildSinkFunc, ext string) filepath.WalkFunc {
+	return func(path string, fi os.FileInfo, err error) error {
 		if err != nil {
 			log.Printf("Error during walk: %v\n", err)
 		}
-		if file.IsDir() {
+		if fi.IsDir() {
 			return nil
 		}
 		f, err := os.Open(path)
@@ -39,7 +41,7 @@ func encodeFiles(bufferSize int, buildFn input.BuildFunc, ext string) filepath.W
 			log.Printf("Error opening file: %v\n", err)
 			return nil
 		}
-		pump, err := input.FilePump(path, f)
+		pump, err := file.Pump(path, f)
 		if err != nil {
 			log.Printf("Error creating a pump: %v\n", err)
 			return nil
@@ -49,18 +51,8 @@ func encodeFiles(bufferSize int, buildFn input.BuildFunc, ext string) filepath.W
 		if err != nil {
 			log.Printf("Error creating output file: %v\n", err)
 		}
-		// build encode pipe
-		encode, err := pipe.New(bufferSize,
-			pipe.WithPump(pump),
-			pipe.WithSinks(buildFn(result)),
-		)
-		if err != nil {
-			return fmt.Errorf("Failed to build pipe: %v", err)
-		}
 
-		// run conversion
-		err = pipe.Wait(encode.Run())
-		if err != nil {
+		if err = pipe.Encode(context.Background(), bufferSize, pump, buildFn(result)); err != nil {
 			return fmt.Errorf("Failed to execute pipe: %v", err)
 		}
 		return nil

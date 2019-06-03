@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/pipelined/phono/input"
+	"github.com/pipelined/phono/file"
 	"github.com/spf13/cobra"
 	"log"
 	"os"
@@ -25,7 +25,7 @@ var (
 			if cmd.Flags().Changed("quality") {
 				useQuality = true
 			}
-			buildFn, err := input.Mp3.Build(
+			buildFn, err := file.Mp3.BuildSink(
 				encodeMp3.bitRateMode,
 				encodeMp3.bitRate,
 				encodeMp3.channelMode,
@@ -37,7 +37,7 @@ var (
 				log.Print(err)
 				os.Exit(1)
 			}
-			walkFn := encodeFiles(encodeMp3.bufferSize, buildFn, input.Mp3.DefaultExtension)
+			walkFn := encodeFiles(encodeMp3.bufferSize, buildFn, file.Mp3.DefaultExtension)
 			for _, path := range args {
 				err := filepath.Walk(path, walkFn)
 				if err != nil {

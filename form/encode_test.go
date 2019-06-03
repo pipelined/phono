@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/pipelined/phono/input/form"
+	"github.com/pipelined/phono/form"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -1,4 +1,4 @@
-package pipe
+package pipes
 
 import (
 	"context"

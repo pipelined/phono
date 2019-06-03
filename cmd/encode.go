@@ -1,17 +1,7 @@
 package cmd
 
 import (
-	"context"
-	"fmt"
-	"log"
-	"os"
-	"path/filepath"
-	"time"
-
 	"github.com/spf13/cobra"
-
-	"github.com/pipelined/phono/file"
-	"github.com/pipelined/phono/pipe"
 )
 
 var (
@@ -26,45 +16,4 @@ var (
 
 func init() {
 	rootCmd.AddCommand(encodeCmd)
-}
-
-func encodeFiles(bufferSize int, buildFn file.BuildSinkFunc, ext string) filepath.WalkFunc {
-	return func(path string, fi os.FileInfo, err error) error {
-		if err != nil {
-			log.Printf("Error during walk: %v\n", err)
-		}
-		if fi.IsDir() {
-			return nil
-		}
-		f, err := os.Open(path)
-		if err != nil {
-			log.Printf("Error opening file: %v\n", err)
-			return nil
-		}
-		pump, err := file.Pump(path, f)
-		if err != nil {
-			log.Printf("Error creating a pump: %v\n", err)
-			return nil
-		}
-		dir, name := filepath.Split(path)
-		result, err := os.Create(outFileName(dir, name, ext))
-		if err != nil {
-			log.Printf("Error creating output file: %v\n", err)
-		}
-
-		if err = pipe.Encode(context.Background(), bufferSize, pump, buildFn(result)); err != nil {
-			return fmt.Errorf("Failed to execute pipe: %v", err)
-		}
-		return nil
-	}
-}
-
-func outFileName(dir, name, ext string) string {
-	n := time.Now()
-	if dir == "" {
-		// return ""
-		return fmt.Sprintf("%s_%02d%02d%02d_%-3d%s", name, n.Hour(), n.Minute(), n.Second(), n.Nanosecond()/int(time.Millisecond), ext)
-	}
-	return fmt.Sprintf("%s%s_%02d%02d%02d_%-3d%s", dir, name, n.Hour(), n.Minute(), n.Second(), n.Nanosecond()/int(time.Millisecond), ext)
-
 }

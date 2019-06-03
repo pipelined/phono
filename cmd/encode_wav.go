@@ -25,7 +25,7 @@ var (
 				log.Print(err)
 				os.Exit(1)
 			}
-			walkFn := encodeFiles(encodeWav.bufferSize, buildFn, file.Wav.DefaultExtension)
+			walkFn := file.Encode(encodeWav.bufferSize, buildFn, file.Wav.DefaultExtension)
 			for _, path := range args {
 				err := filepath.Walk(path, walkFn)
 				if err != nil {

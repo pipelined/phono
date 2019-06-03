@@ -1,11 +1,12 @@
 package cmd
 
 import (
-	"github.com/pipelined/phono/file"
-	"github.com/spf13/cobra"
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/pipelined/phono/file"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -37,7 +38,7 @@ var (
 				log.Print(err)
 				os.Exit(1)
 			}
-			walkFn := encodeFiles(encodeMp3.bufferSize, buildFn, file.Mp3.DefaultExtension)
+			walkFn := file.Encode(encodeMp3.bufferSize, buildFn, file.Mp3.DefaultExtension)
 			for _, path := range args {
 				err := filepath.Walk(path, walkFn)
 				if err != nil {

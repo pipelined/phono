@@ -13,7 +13,7 @@ import (
 	"strconv"
 
 	"github.com/pipelined/phono/file"
-	"github.com/pipelined/phono/pipe"
+	"github.com/pipelined/phono/pipes"
 )
 
 type (
@@ -90,7 +90,7 @@ func Encode(form EncodeForm, bufferSize int, tempDir string) http.Handler {
 			defer cleanUp(tempFile)
 
 			// encode file using temp file
-			if err = pipe.Encode(r.Context(), bufferSize, pump, buildFn(tempFile)); err != nil {
+			if err = pipes.Encode(r.Context(), bufferSize, pump, buildFn(tempFile)); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}

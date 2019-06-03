@@ -33,12 +33,11 @@ var (
 				useQuality,
 				encodeMp3.quality,
 			)
-
 			if err != nil {
 				log.Print(err)
 				os.Exit(1)
 			}
-			walkFn := file.Encode(encodeMp3.bufferSize, buildFn, file.Mp3.DefaultExtension)
+			walkFn := encode(encodeMp3.bufferSize, buildFn, file.Mp3.DefaultExtension)
 			for _, path := range args {
 				err := filepath.Walk(path, walkFn)
 				if err != nil {

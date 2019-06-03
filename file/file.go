@@ -1,16 +1,9 @@
 package file
 
 import (
-	"context"
 	"fmt"
 	"io"
-	"log"
-	"os"
-	"path/filepath"
 	"strings"
-	"time"
-
-	"github.com/pipelined/phono/pipes"
 
 	"github.com/pipelined/mp3"
 	"github.com/pipelined/pipe"
@@ -95,6 +88,7 @@ func HasExtension(fileName string, exts []string) bool {
 }
 
 // BuildSink validates all parameters required to build wav sink. If valid, build closure is returned.
+// Closure allows to postpone io opertaions and do them only after all sink parameters are validated.
 func (f wavFormat) BuildSink(bitDepth int) (BuildSinkFunc, error) {
 	bd := signal.BitDepth(bitDepth)
 	if _, ok := f.BitDepths[bd]; !ok {
@@ -109,7 +103,8 @@ func (f wavFormat) BuildSink(bitDepth int) (BuildSinkFunc, error) {
 	}, nil
 }
 
-// Build validates all parameters required to build mp3 sink. If valid, build closure is returned.
+// BuildSink validates all parameters required to build mp3 sink. If valid, build closure is returned.
+// Closure allows to postpone io opertaions and do them only after all sink parameters are validated.
 func (f mp3Format) BuildSink(bitRateMode string, bitRate, channelMode int, useQuality bool, quality int) (BuildSinkFunc, error) {
 	cm := mp3.ChannelMode(channelMode)
 	if _, ok := f.ChannelModes[cm]; !ok {
@@ -162,45 +157,4 @@ func (f mp3Format) bitRate(v int) error {
 		return fmt.Errorf("Bit rate %v is not supported. Provide value between %d and %d", v, f.MinBitRate, f.MaxBitRate)
 	}
 	return nil
-}
-
-func Encode(bufferSize int, buildFn BuildSinkFunc, ext string) filepath.WalkFunc {
-	return func(path string, fi os.FileInfo, err error) error {
-		if err != nil {
-			log.Printf("Error during walk: %v\n", err)
-		}
-		if fi.IsDir() {
-			return nil
-		}
-		f, err := os.Open(path)
-		if err != nil {
-			log.Printf("Error opening file: %v\n", err)
-			return nil
-		}
-		pump, err := Pump(path, f)
-		if err != nil {
-			log.Printf("Error creating a pump: %v\n", err)
-			return nil
-		}
-		dir, name := filepath.Split(path)
-		result, err := os.Create(outFileName(dir, name, ext))
-		if err != nil {
-			log.Printf("Error creating output file: %v\n", err)
-		}
-
-		if err = pipes.Encode(context.Background(), bufferSize, pump, buildFn(result)); err != nil {
-			return fmt.Errorf("Failed to execute pipe: %v", err)
-		}
-		return nil
-	}
-}
-
-func outFileName(dir, name, ext string) string {
-	n := time.Now()
-	if dir == "" {
-		// return ""
-		return fmt.Sprintf("%s_%02d%02d%02d_%-3d%s", name, n.Hour(), n.Minute(), n.Second(), n.Nanosecond()/int(time.Millisecond), ext)
-	}
-	return fmt.Sprintf("%s%s_%02d%02d%02d_%-3d%s", dir, name, n.Hour(), n.Minute(), n.Second(), n.Nanosecond()/int(time.Millisecond), ext)
-
 }

@@ -7,8 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/spf13/cobra"
 
@@ -47,21 +45,12 @@ func serve(port int, tempDir string, bufferSize int) {
 
 	interrupt := make(chan struct{})
 	server := http.Server{Addr: fmt.Sprintf(":%d", port)}
-	go func() {
-		sigint := make(chan os.Signal, 1)
-		// interrupt and sigterm signal
-		signal.Notify(sigint, os.Interrupt)
-		signal.Notify(sigint, syscall.SIGTERM)
-
-		// block until signal received
-		<-sigint
-
+	go run(interrupt, func() {
 		// interrupt signal received, shut down
 		if err := server.Shutdown(context.Background()); err != nil {
 			log.Printf("HTTP server Shutdown error: %v", err)
 		}
-		close(interrupt)
-	}()
+	})
 
 	// setting router rule
 	http.Handle("/", handler.Encode(form.Encode{}, bufferSize, dir))

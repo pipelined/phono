@@ -1,9 +1,9 @@
 package cmd
 
 import (
+	"context"
 	"log"
 	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -20,18 +20,22 @@ var (
 		Short: "Encode audio files to wav format",
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			// parse input
 			buildFn, err := file.Wav.BuildSink(encodeWav.bitDepth)
 			if err != nil {
 				log.Print(err)
 				os.Exit(1)
 			}
-			walkFn := encode(encodeWav.bufferSize, buildFn, file.Wav.DefaultExtension)
-			for _, path := range args {
-				err := filepath.Walk(path, walkFn)
-				if err != nil {
-					log.Print(err)
-				}
-			}
+			// create channel for interruption and context for cancellation
+			interrupt := make(chan struct{})
+			ctx, cancelFn := context.WithCancel(context.Background())
+			go run(interrupt, func() {
+				// interrupt signal received, shut down
+				cancelFn()
+			})
+			encode(ctx, args, encodeWav.bufferSize, buildFn, file.Wav.DefaultExtension)
+			// block until interruption doesn't return
+			<-interrupt
 		},
 	}
 )

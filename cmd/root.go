@@ -3,6 +3,8 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/spf13/cobra"
 )
@@ -21,4 +23,16 @@ func Execute() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+}
+
+func run(interrupt chan<- struct{}, onInterrupt func()) {
+	sigint := make(chan os.Signal, 1)
+	// interrupt and sigterm signal
+	signal.Notify(sigint, os.Interrupt)
+	signal.Notify(sigint, syscall.SIGTERM)
+
+	// block until signal received
+	<-sigint
+	onInterrupt()
+	close(interrupt)
 }

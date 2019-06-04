@@ -28,8 +28,8 @@ func init() {
 	rootCmd.AddCommand(encodeCmd)
 }
 
-func encode(bufferSize int, buildFn file.BuildSinkFunc, ext string) filepath.WalkFunc {
-	return func(path string, fi os.FileInfo, err error) error {
+func encode(ctx context.Context, paths []string, bufferSize int, buildFn file.BuildSinkFunc, ext string) {
+	walkFn := func(path string, fi os.FileInfo, err error) error {
 		if err != nil {
 			log.Printf("Error during walk: %v\n", err)
 		}
@@ -43,7 +43,7 @@ func encode(bufferSize int, buildFn file.BuildSinkFunc, ext string) filepath.Wal
 		}
 		pump, err := file.Pump(path, f)
 		if err != nil {
-			log.Printf("Error creating a pump: %v\n", err)
+			log.Printf("Cannot create a pump: %v\n", err)
 			return nil
 		}
 		dir, name := filepath.Split(path)
@@ -52,10 +52,16 @@ func encode(bufferSize int, buildFn file.BuildSinkFunc, ext string) filepath.Wal
 			log.Printf("Error creating output file: %v\n", err)
 		}
 
-		if err = pipes.Encode(context.Background(), bufferSize, pump, buildFn(result)); err != nil {
+		if err = pipes.Encode(ctx, bufferSize, pump, buildFn(result)); err != nil {
 			return fmt.Errorf("Failed to execute pipe: %v", err)
 		}
 		return nil
+	}
+	for _, path := range paths {
+		err := filepath.Walk(path, walkFn)
+		if err != nil {
+			log.Print(err)
+		}
 	}
 }
 

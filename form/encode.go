@@ -28,17 +28,27 @@ const (
 
 func maxSizes(wavMaxSize, mp3MaxSize int64) map[string]int64 {
 	m := make(map[string]int64)
-	for _, ext := range file.Mp3.Extensions {
+	for ext := range file.Mp3.Extensions {
 		m[ext] = mp3MaxSize
 	}
-	for _, ext := range file.Wav.Extensions {
+	for ext := range file.Wav.Extensions {
 		m[ext] = wavMaxSize
 	}
 	return m
 }
 
+func mergeExtensions(exts ...map[string]struct{}) []string {
+    result := make([]string, 0)
+    for _, m := range exts {
+        for ext := range m {
+            result = append(result, ext)
+        }
+    }
+    return result
+}
+
 // outFormats maps the extensions with values without dots.
-func outFormats(exts ...string) map[string]string {
+func outFormats(exts []string) map[string]string {
 	m := make(map[string]string)
 	for _, ext := range exts {
 		m[ext] = ext[1:]
@@ -47,9 +57,11 @@ func outFormats(exts ...string) map[string]string {
 }
 
 var (
+    extensions = mergeExtensions(file.Wav.Extensions, file.Mp3.Extensions)
+
 	encodeForm = encodeData{
-		Accept:     strings.Join(append(file.Wav.Extensions, file.Mp3.Extensions...), ", "),
-		OutFormats: outFormats(file.Wav.DefaultExtension, file.Mp3.DefaultExtension),
+		Accept:     strings.Join(extensions, ", "),
+		OutFormats: outFormats(extensions),
 		Wav:        file.Wav,
 		Mp3:        file.Mp3,
 	}
@@ -96,7 +108,7 @@ func (Encode) FileKey() string {
 // ParseSink provided via form.
 // This function should return extensions, sinkbuilder
 func (Encode) ParseSink(data url.Values) (fn file.BuildSinkFunc, ext string, err error) {
-	ext = data.Get("format")
+	ext = strings.ToLower(data.Get("format"))
 	switch ext {
 	case file.Wav.DefaultExtension:
 		fn, err = parseWavSink(data)

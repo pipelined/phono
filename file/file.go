@@ -3,6 +3,7 @@ package file
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/pipelined/mp3"
@@ -14,13 +15,13 @@ import (
 type (
 	wavFormat struct {
 		DefaultExtension string
-		Extensions       []string
+		Extensions       map[string]struct{}
 		BitDepths        map[signal.BitDepth]struct{}
 	}
 
 	mp3Format struct {
 		DefaultExtension string
-		Extensions       []string
+		Extensions       map[string]struct{}
 		MaxBitRate       int
 		MinBitRate       int
 		ChannelModes     map[mp3.ChannelMode]struct{}
@@ -40,7 +41,10 @@ var (
 	// Wav provides logic required to process input of wav files.
 	Wav = wavFormat{
 		DefaultExtension: ".wav",
-		Extensions:       []string{".wav", ".wave"},
+		Extensions: map[string]struct{}{
+			".wav":  {},
+			".wave": {},
+		},
 		BitDepths: map[signal.BitDepth]struct{}{
 			signal.BitDepth8:  {},
 			signal.BitDepth16: {},
@@ -52,9 +56,11 @@ var (
 	// Mp3 provides logic required to process input of mp3 files.
 	Mp3 = mp3Format{
 		DefaultExtension: ".mp3",
-		Extensions:       []string{".mp3"},
-		MinBitRate:       8,
-		MaxBitRate:       320,
+		Extensions: map[string]struct{}{
+			".mp3": {},
+		},
+		MinBitRate: 8,
+		MaxBitRate: 320,
 		ChannelModes: map[mp3.ChannelMode]struct{}{
 			mp3.JointStereo: {},
 			mp3.Stereo:      {},
@@ -68,12 +74,13 @@ var (
 
 // Pump returns pump for provided file source. Type of the pump is determined by file extension.
 func Pump(fileName string) (BuildPumpFunc, error) {
+	ext := strings.ToLower(filepath.Ext(fileName))
 	switch {
-	case HasExtension(fileName, Wav.Extensions):
+	case hasExtension(ext, Wav.Extensions):
 		return func(rs io.ReadSeeker) pipe.Pump {
 			return &wav.Pump{ReadSeeker: rs}
 		}, nil
-	case HasExtension(fileName, Mp3.Extensions):
+	case hasExtension(ext, Mp3.Extensions):
 		return func(rs io.ReadSeeker) pipe.Pump {
 			return &mp3.Pump{Reader: rs}
 		}, nil
@@ -82,16 +89,11 @@ func Pump(fileName string) (BuildPumpFunc, error) {
 	}
 }
 
-// HasExtension validates if filename has one of passed extensions.
+// hasExtension validates if filename has one of passed extensions.
 // Filename is lower-cased before comparison.
-func HasExtension(fileName string, exts []string) bool {
-	name := strings.ToLower(fileName)
-	for _, ext := range exts {
-		if strings.HasSuffix(name, ext) {
-			return true
-		}
-	}
-	return false
+func hasExtension(ext string, exts map[string]struct{}) bool {
+	_, ok := exts[ext]
+	return ok
 }
 
 // BuildSink validates all parameters required to build wav sink. If valid, build closure is returned.

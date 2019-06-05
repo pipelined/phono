@@ -30,9 +30,9 @@ func TestFilePump(t *testing.T) {
 			assert.NotNil(t, err)
 		} else {
 			assert.NotNil(t, buildPump)
+			pump := buildPump(nil)
+			assert.NotNil(t, pump)
 		}
-		pump := buildPump(nil)
-		assert.NotNil(t, pump)
 	}
 }
 

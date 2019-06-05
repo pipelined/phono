@@ -74,7 +74,6 @@ func encode(ctx context.Context, paths []string, bufferSize int, buildSink file.
 func outFileName(dir, name, ext string) string {
 	n := time.Now()
 	if dir == "" {
-		// return ""
 		return fmt.Sprintf("%s_%02d%02d%02d_%-3d%s", name, n.Hour(), n.Minute(), n.Second(), n.Nanosecond()/int(time.Millisecond), ext)
 	}
 	return fmt.Sprintf("%s%s_%02d%02d%02d_%-3d%s", dir, name, n.Hour(), n.Minute(), n.Second(), n.Nanosecond()/int(time.Millisecond), ext)

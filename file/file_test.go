@@ -25,12 +25,14 @@ func TestFilePump(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		pump, err := file.Pump(test.fileName, nil)
+		buildPump, err := file.Pump(test.fileName)
 		if test.negative {
 			assert.NotNil(t, err)
 		} else {
-			assert.NotNil(t, pump)
+			assert.NotNil(t, buildPump)
 		}
+		pump := buildPump(nil)
+		assert.NotNil(t, pump)
 	}
 }
 

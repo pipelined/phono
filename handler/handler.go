@@ -68,14 +68,14 @@ func Encode(form EncodeForm, bufferSize int, tempDir string) http.Handler {
 			defer f.Close()
 
 			// parse pump
-			pump, err := file.Pump(handler.Filename, f)
+			buildPump, err := file.Pump(handler.Filename)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 
 			// parse sink and validate parameters
-			buildFn, ext, err := form.ParseSink(r.MultipartForm.Value)
+			buildSink, ext, err := form.ParseSink(r.MultipartForm.Value)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
@@ -90,7 +90,7 @@ func Encode(form EncodeForm, bufferSize int, tempDir string) http.Handler {
 			defer cleanUp(tempFile)
 
 			// encode file using temp file
-			if err = pipes.Encode(r.Context(), bufferSize, pump, buildFn(tempFile)); err != nil {
+			if err = pipes.Encode(r.Context(), bufferSize, buildPump(f), buildSink(tempFile)); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}

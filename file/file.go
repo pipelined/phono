@@ -29,6 +29,9 @@ type (
 		ABR              string
 	}
 
+	// BuildPumpFunc is used to inject ReadSeeker into Pump.
+	BuildPumpFunc func(io.ReadSeeker) pipe.Pump
+
 	// BuildSinkFunc is used to inject WriteSeeker into Sink.
 	BuildSinkFunc func(io.WriteSeeker) pipe.Sink
 )
@@ -64,12 +67,16 @@ var (
 )
 
 // Pump returns pump for provided file source. Type of the pump is determined by file extension.
-func Pump(fileName string, rs io.ReadSeeker) (pipe.Pump, error) {
+func Pump(fileName string) (BuildPumpFunc, error) {
 	switch {
 	case HasExtension(fileName, Wav.Extensions):
-		return &wav.Pump{ReadSeeker: rs}, nil
+		return func(rs io.ReadSeeker) pipe.Pump {
+			return &wav.Pump{ReadSeeker: rs}
+		}, nil
 	case HasExtension(fileName, Mp3.Extensions):
-		return &mp3.Pump{Reader: rs}, nil
+		return func(rs io.ReadSeeker) pipe.Pump {
+			return &mp3.Pump{Reader: rs}
+		}, nil
 	default:
 		return nil, fmt.Errorf("File has unsupported extension: %v", fileName)
 	}

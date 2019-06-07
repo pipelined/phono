@@ -3,8 +3,9 @@ package file_test
 import (
 	"testing"
 
-	"github.com/pipelined/phono/file"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/pipelined/phono/file"
 )
 
 func TestFilePump(t *testing.T) {

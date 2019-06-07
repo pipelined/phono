@@ -12,10 +12,10 @@ import (
 	"testing"
 
 	"golang.org/x/net/html"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/pipelined/phono/form"
 	"github.com/pipelined/phono/handler"
-	"github.com/stretchr/testify/assert"
 )
 
 func parseURL(raw string) (result *url.URL) {

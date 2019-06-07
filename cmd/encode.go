@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/pipelined/phono/file"
 	"github.com/pipelined/phono/pipes"
-
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -29,6 +29,7 @@ func init() {
 }
 
 func encode(ctx context.Context, paths []string, bufferSize int, buildSink file.BuildSinkFunc, ext string) {
+	command := "phono-encode"
 	walkFn := func(path string, fi os.FileInfo, err error) error {
 		if err != nil {
 			log.Printf("Error during walk: %v\n", err)
@@ -36,32 +37,35 @@ func encode(ctx context.Context, paths []string, bufferSize int, buildSink file.
 		if fi.IsDir() {
 			return nil
 		}
+
 		// try to build pump
 		buildPump, err := file.Pump(path)
 		if err != nil {
-			log.Printf("Cannot create a pump: %v\n", err)
+			// file is not supported, skip
 			return nil
 		}
+
 		// open file
-		f, err := os.Open(path)
+		in, err := os.Open(path)
 		if err != nil {
 			log.Printf("Error opening file: %v\n", err)
 			return nil
 		}
-		// since we only read file, it's ok to close it with defer
-		defer f.Close()
-		dir, name := filepath.Split(path)
-		result, err := os.Create(outFileName(dir, name, ext))
+		defer in.Close() // since we only read file, it's ok to close it with defer
+
+		// create output filename
+		outFilename := filepath.Join(filepath.Dir(path), outName("", command, ext))
+		out, err := os.Create(outFilename)
 		if err != nil {
 			log.Printf("Error creating output file: %v\n", err)
 		}
 		// error will be handled in the end of the flow
-		defer result.Close()
+		defer out.Close()
 
-		if err = pipes.Encode(ctx, bufferSize, buildPump(f), buildSink(result)); err != nil {
+		if err = pipes.Encode(ctx, bufferSize, buildPump(in), buildSink(out)); err != nil {
 			return fmt.Errorf("Failed to execute pipe: %v", err)
 		}
-		return result.Close()
+		return out.Close()
 	}
 	for _, path := range paths {
 		err := filepath.Walk(path, walkFn)
@@ -71,11 +75,15 @@ func encode(ctx context.Context, paths []string, bufferSize int, buildSink file.
 	}
 }
 
-func outFileName(dir, name, ext string) string {
-	n := time.Now()
-	if dir == "" {
-		return fmt.Sprintf("%s_%02d%02d%02d_%-3d%s", name, n.Hour(), n.Minute(), n.Second(), n.Nanosecond()/int(time.Millisecond), ext)
+// outName generates an output file name with a next template:
+// 	[prefix-]name-timestamp.ext
+func outName(prefix, command, ext string) string {
+	if prefix != "" {
+		return fmt.Sprintf("%s-%s-%s%s", prefix, command, timestamp(), ext)
 	}
-	return fmt.Sprintf("%s%s_%02d%02d%02d_%-3d%s", dir, name, n.Hour(), n.Minute(), n.Second(), n.Nanosecond()/int(time.Millisecond), ext)
+	return fmt.Sprintf("%s-%s%s", command, timestamp(), ext)
+}
 
+func timestamp() string {
+	return time.Now().Format("2006-01-02T150405.999")
 }

@@ -28,7 +28,14 @@ func init() {
 	rootCmd.AddCommand(encodeCmd)
 }
 
-func encode(ctx context.Context, paths []string, bufferSize int, buildSink file.BuildSinkFunc, ext string) {
+func encode(ctx context.Context, paths []string, outDir string, bufferSize int, buildSink file.BuildSinkFunc, ext string) {
+	if outDir != "" {
+		if _, err := os.Stat(outDir); os.IsNotExist(err) {
+			log.Printf("Out path doesn't exist: %v", err)
+			return
+		}
+	}
+
 	command := "phono-encode"
 	walkFn := func(path string, fi os.FileInfo, err error) error {
 		if err != nil {
@@ -54,7 +61,13 @@ func encode(ctx context.Context, paths []string, bufferSize int, buildSink file.
 		defer in.Close() // since we only read file, it's ok to close it with defer
 
 		// create output filename
-		outFilename := filepath.Join(filepath.Dir(path), outName("", command, ext))
+		var outFilename string
+		if outDir != "" {
+			outFilename = filepath.Join(outDir, outName("", command, ext))
+		} else {
+			outFilename = filepath.Join(filepath.Dir(path), outName("", command, ext))
+		}
+
 		out, err := os.Create(outFilename)
 		if err != nil {
 			log.Printf("Error creating output file: %v\n", err)

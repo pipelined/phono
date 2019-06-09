@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	
+
 	"github.com/pipelined/phono/file"
 )
 
@@ -17,6 +17,7 @@ var (
 		bitRateMode string
 		bitRate     int
 		quality     int
+		outPath     string
 	}{}
 	encodeMp3Cmd = &cobra.Command{
 		Use:   "mp3",
@@ -38,13 +39,14 @@ var (
 				log.Print(err)
 				os.Exit(1)
 			}
-			encode(context.Background(), args, encodeMp3.bufferSize, buildFn, file.Mp3.DefaultExtension)
+			encode(context.Background(), args, encodeMp3.outPath, encodeMp3.bufferSize, buildFn, file.Mp3.DefaultExtension)
 		},
 	}
 )
 
 func init() {
 	encodeCmd.AddCommand(encodeMp3Cmd)
+	encodeMp3Cmd.Flags().StringVar(&encodeMp3.outPath, "out", "", "output folder, the input folder is used if not specified")
 	encodeMp3Cmd.Flags().IntVar(&encodeMp3.bufferSize, "buffersize", 1024, "buffer size")
 	encodeMp3Cmd.Flags().IntVar(&encodeMp3.channelMode, "channelmode", 2, "channel mode:\n0 - mono\n1 - stereo\n2 - joint stereo")
 	encodeMp3Cmd.Flags().StringVar(&encodeMp3.bitRateMode, "bitratemode", "vbr", "bit rate mode:\ncbr - constant bit rate\nabr - average bit rate\nvbr - variable bit rate")

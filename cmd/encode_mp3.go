@@ -12,12 +12,13 @@ import (
 
 var (
 	encodeMp3 = struct {
+		outPath     string
+		recursive   bool
 		bufferSize  int
 		channelMode int
 		bitRateMode string
 		bitRate     int
 		quality     int
-		outPath     string
 	}{}
 	encodeMp3Cmd = &cobra.Command{
 		Use:   "mp3",
@@ -39,7 +40,14 @@ var (
 				log.Print(err)
 				os.Exit(1)
 			}
-			encode(context.Background(), args, encodeMp3.outPath, encodeMp3.bufferSize, buildFn, file.Mp3.DefaultExtension)
+			encode(context.Background(),
+				args,
+				encodeMp3.recursive,
+				encodeMp3.outPath,
+				encodeMp3.bufferSize,
+				buildFn,
+				file.Mp3.DefaultExtension,
+			)
 		},
 	}
 )
@@ -52,5 +60,6 @@ func init() {
 	encodeMp3Cmd.Flags().StringVar(&encodeMp3.bitRateMode, "bitratemode", "vbr", "bit rate mode:\ncbr - constant bit rate\nabr - average bit rate\nvbr - variable bit rate")
 	encodeMp3Cmd.Flags().IntVar(&encodeMp3.bitRate, "bitrate", 4, "bit rate:\n[8..320] for cbr and abr\n[0..9] for vbr")
 	encodeMp3Cmd.Flags().IntVar(&encodeMp3.quality, "quality", 5, "quality [0..9]")
+	encodeMp3Cmd.Flags().BoolVar(&encodeMp3.recursive, "recursive", false, "process input recursive")
 	encodeMp3Cmd.Flags().SortFlags = false
 }

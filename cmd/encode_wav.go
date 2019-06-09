@@ -12,9 +12,10 @@ import (
 
 var (
 	encodeWav = struct {
+		outPath    string
+		recursive  bool
 		bufferSize int
 		bitDepth   int
-		outPath    string
 	}{}
 	encodeWavCmd = &cobra.Command{
 		Use:   "wav",
@@ -34,7 +35,14 @@ var (
 				// interrupt signal received, shut down
 				cancelFn()
 			})
-			encode(ctx, args, encodeWav.outPath, encodeWav.bufferSize, buildFn, file.Wav.DefaultExtension)
+			encode(ctx,
+				args,
+				encodeWav.recursive,
+				encodeWav.outPath,
+				encodeWav.bufferSize,
+				buildFn,
+				file.Wav.DefaultExtension,
+			)
 			// block until interruption doesn't return
 			<-interrupt
 		},
@@ -46,5 +54,6 @@ func init() {
 	encodeWavCmd.Flags().StringVar(&encodeWav.outPath, "out", "", "output folder, the input folder is used if not specified")
 	encodeWavCmd.Flags().IntVar(&encodeWav.bufferSize, "buffersize", 1024, "buffer size")
 	encodeWavCmd.Flags().IntVar(&encodeWav.bitDepth, "bitdepth", 24, "bit depth")
+	encodeWavCmd.Flags().BoolVar(&encodeWav.recursive, "recursive", false, "process input recursive")
 	encodeWavCmd.Flags().SortFlags = false
 }

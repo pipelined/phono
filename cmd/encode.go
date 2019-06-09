@@ -28,11 +28,18 @@ func init() {
 	rootCmd.AddCommand(encodeCmd)
 }
 
-func encode(ctx context.Context, paths []string, outDir string, bufferSize int, buildSink file.BuildSinkFunc, ext string) {
+func encode(ctx context.Context, paths []string, recursive bool, outDir string, bufferSize int, buildSink file.BuildSinkFunc, ext string) {
 	if outDir != "" {
 		if _, err := os.Stat(outDir); os.IsNotExist(err) {
 			log.Printf("Out path doesn't exist: %v", err)
 			return
+		}
+	}
+	// build a map for easy-check
+	mpaths := make(map[string]struct{})
+	if !recursive {
+		for _, p := range paths {
+			mpaths[p] = struct{}{}
 		}
 	}
 
@@ -42,7 +49,16 @@ func encode(ctx context.Context, paths []string, outDir string, bufferSize int, 
 			log.Printf("Error during walk: %v\n", err)
 		}
 		if fi.IsDir() {
-			return nil
+			// process subdirs
+			if recursive {
+				return nil
+			}
+
+			// if not recursive, skip all subdirs
+			if _, ok := mpaths[path]; ok {
+				return nil
+			}
+			return filepath.SkipDir
 		}
 
 		// try to build pump

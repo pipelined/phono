@@ -38,17 +38,17 @@ func maxSizes(wavMaxSize, mp3MaxSize int64) map[string]int64 {
 }
 
 func mergeExtensions(exts ...map[string]struct{}) []string {
-    result := make([]string, 0)
-    for _, m := range exts {
-        for ext := range m {
-            result = append(result, ext)
-        }
-    }
-    return result
+	result := make([]string, 0)
+	for _, m := range exts {
+		for ext := range m {
+			result = append(result, ext)
+		}
+	}
+	return result
 }
 
 // outFormats maps the extensions with values without dots.
-func outFormats(exts []string) map[string]string {
+func outFormats(exts ...string) map[string]string {
 	m := make(map[string]string)
 	for _, ext := range exts {
 		m[ext] = ext[1:]
@@ -57,11 +57,11 @@ func outFormats(exts []string) map[string]string {
 }
 
 var (
-    extensions = mergeExtensions(file.Wav.Extensions, file.Mp3.Extensions)
+	extensions = mergeExtensions(file.Wav.Extensions, file.Mp3.Extensions)
 
 	encodeForm = encodeData{
 		Accept:     strings.Join(extensions, ", "),
-		OutFormats: outFormats(extensions),
+		OutFormats: outFormats(file.Wav.DefaultExtension, file.Mp3.DefaultExtension),
 		Wav:        file.Wav,
 		Mp3:        file.Mp3,
 	}

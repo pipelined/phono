@@ -43,9 +43,8 @@ func serve(port int, tempDir string, bufferSize int) {
 		log.Fatal(fmt.Sprintf("Failed to create temp folder: %v", err))
 	}
 
-	interrupt := make(chan struct{})
 	server := http.Server{Addr: fmt.Sprintf(":%d", port)}
-	go run(interrupt, func() {
+	interrupt := run(func() {
 		// interrupt signal received, shut down
 		if err := server.Shutdown(context.Background()); err != nil {
 			log.Printf("HTTP server Shutdown error: %v", err)

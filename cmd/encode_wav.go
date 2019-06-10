@@ -29,9 +29,8 @@ var (
 				os.Exit(1)
 			}
 			// create channel for interruption and context for cancellation
-			interrupt := make(chan struct{})
 			ctx, cancelFn := context.WithCancel(context.Background())
-			go run(interrupt, func() {
+			interrupt := run(func() {
 				// interrupt signal received, shut down
 				cancelFn()
 			})

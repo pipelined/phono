@@ -18,9 +18,10 @@ var (
 		bitDepth   int
 	}{}
 	encodeWavCmd = &cobra.Command{
-		Use:   "wav",
-		Short: "Encode audio files to wav format",
-		Args:  cobra.MinimumNArgs(1),
+		Use:                   "wav [flags] path...",
+		DisableFlagsInUseLine: true,
+		Short:                 "Encode audio files to wav format",
+		Args:                  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			// parse input
 			buildFn, err := file.Wav.BuildSink(encodeWav.bitDepth)
@@ -53,6 +54,6 @@ func init() {
 	encodeWavCmd.Flags().StringVar(&encodeWav.outPath, "out", "", "output folder, the input folder is used if not specified")
 	encodeWavCmd.Flags().IntVar(&encodeWav.bufferSize, "buffersize", 1024, "buffer size")
 	encodeWavCmd.Flags().IntVar(&encodeWav.bitDepth, "bitdepth", 24, "bit depth")
-	encodeWavCmd.Flags().BoolVar(&encodeWav.recursive, "recursive", false, "process input recursive")
+	encodeWavCmd.Flags().BoolVar(&encodeWav.recursive, "recursive", false, "process paths recursive")
 	encodeWavCmd.Flags().SortFlags = false
 }

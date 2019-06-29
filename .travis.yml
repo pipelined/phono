@@ -1,6 +1,6 @@
 language: go
 go: 
- - "1.11.x"
+ - "1.x"
 
 os: osx
 
@@ -10,6 +10,7 @@ addons:
   homebrew:
     packages:
     - lame
+    update: true
 
 env:
   global:

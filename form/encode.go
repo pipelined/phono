@@ -9,11 +9,11 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/pipelined/phono/input"
+	"github.com/pipelined/phono/file"
 )
 
-// convertData provides a data for convert form, so user can define conversion parameters.
-type convertData struct {
+// encodeData provides a data for encode form, so user can define conversion parameters.
+type encodeData struct {
 	Accept     string
 	OutFormats map[string]string
 	Wav        interface{}
@@ -28,13 +28,23 @@ const (
 
 func maxSizes(wavMaxSize, mp3MaxSize int64) map[string]int64 {
 	m := make(map[string]int64)
-	for _, ext := range input.Mp3.Extensions {
+	for ext := range file.Mp3.Extensions {
 		m[ext] = mp3MaxSize
 	}
-	for _, ext := range input.Wav.Extensions {
+	for ext := range file.Wav.Extensions {
 		m[ext] = wavMaxSize
 	}
 	return m
+}
+
+func mergeExtensions(exts ...map[string]struct{}) []string {
+	result := make([]string, 0)
+	for _, m := range exts {
+		for ext := range m {
+			result = append(result, ext)
+		}
+	}
+	return result
 }
 
 // outFormats maps the extensions with values without dots.
@@ -47,41 +57,43 @@ func outFormats(exts ...string) map[string]string {
 }
 
 var (
-	convertForm = convertData{
-		Accept:     strings.Join(append(input.Wav.Extensions, input.Mp3.Extensions...), ", "),
-		OutFormats: outFormats(input.Wav.DefaultExtension, input.Mp3.DefaultExtension),
-		Wav:        input.Wav,
-		Mp3:        input.Mp3,
+	extensions = mergeExtensions(file.Wav.Extensions, file.Mp3.Extensions)
+
+	encodeForm = encodeData{
+		Accept:     strings.Join(extensions, ", "),
+		OutFormats: outFormats(file.Wav.DefaultExtension, file.Mp3.DefaultExtension),
+		Wav:        file.Wav,
+		Mp3:        file.Mp3,
 	}
 
-	convertTmpl = template.Must(template.New("convert").Parse(convertHTML))
+	encodeTmpl = template.Must(template.New("encode").Parse(encodeHTML))
 )
 
-// Convert provides user interaction via http form.
-type Convert struct {
+// Encode provides user interaction via http form.
+type Encode struct {
 	WavMaxSize int64
 	Mp3MaxSize int64
 }
 
 // Data returns serialized form data, ready to be served.
-func (c Convert) Data() []byte {
-	d := convertForm
+func (c Encode) Data() []byte {
+	d := encodeForm
 	d.MaxSizes = maxSizes(c.WavMaxSize, c.Mp3MaxSize)
 
 	var b bytes.Buffer
-	if err := convertTmpl.Execute(&b, d); err != nil {
-		panic(fmt.Sprintf("Failed to parse convert template: %v", err))
+	if err := encodeTmpl.Execute(&b, d); err != nil {
+		panic(fmt.Sprintf("Failed to parse encode template: %v", err))
 	}
 	return b.Bytes()
 }
 
 // InputMaxSize of file from http request.
-func (c Convert) InputMaxSize(url string) (int64, error) {
+func (c Encode) InputMaxSize(url string) (int64, error) {
 	ext := strings.ToLower(path.Base(url))
 	switch ext {
-	case input.Mp3.DefaultExtension:
+	case file.Mp3.DefaultExtension:
 		return c.Mp3MaxSize, nil
-	case input.Wav.DefaultExtension:
+	case file.Wav.DefaultExtension:
 		return c.WavMaxSize, nil
 	default:
 		return 0, fmt.Errorf("Format %s not supported", ext)
@@ -89,18 +101,18 @@ func (c Convert) InputMaxSize(url string) (int64, error) {
 }
 
 // FileKey returns a name of form file value.
-func (Convert) FileKey() string {
+func (Encode) FileKey() string {
 	return FileKey
 }
 
 // ParseSink provided via form.
 // This function should return extensions, sinkbuilder
-func (Convert) ParseSink(data url.Values) (fn input.BuildFunc, ext string, err error) {
-	ext = data.Get("format")
+func (Encode) ParseSink(data url.Values) (fn file.BuildSinkFunc, ext string, err error) {
+	ext = strings.ToLower(data.Get("format"))
 	switch ext {
-	case input.Wav.DefaultExtension:
+	case file.Wav.DefaultExtension:
 		fn, err = parseWavSink(data)
-	case input.Mp3.DefaultExtension:
+	case file.Mp3.DefaultExtension:
 		fn, err = parseMp3Sink(data)
 	default:
 		err = fmt.Errorf("Unsupported format: %v", ext)
@@ -111,16 +123,16 @@ func (Convert) ParseSink(data url.Values) (fn input.BuildFunc, ext string, err e
 	return
 }
 
-func parseWavSink(data url.Values) (input.BuildFunc, error) {
+func parseWavSink(data url.Values) (file.BuildSinkFunc, error) {
 	// try to get bit depth
 	bitDepth, err := parseIntValue(data, "wav-bit-depth", "bit depth")
 	if err != nil {
 		return nil, err
 	}
-	return input.Wav.Build(bitDepth)
+	return file.Wav.BuildSink(bitDepth)
 }
 
-func parseMp3Sink(data url.Values) (input.BuildFunc, error) {
+func parseMp3Sink(data url.Values) (file.BuildSinkFunc, error) {
 	// try to get channel mode
 	channelMode, err := parseIntValue(data, "mp3-channel-mode", "channel mode")
 	if err != nil {
@@ -135,19 +147,19 @@ func parseMp3Sink(data url.Values) (input.BuildFunc, error) {
 
 	var bitRate int
 	switch bitRateMode {
-	case input.Mp3.VBR:
+	case file.Mp3.VBR:
 		// try to get vbr quality
 		bitRate, err = parseIntValue(data, "mp3-vbr-quality", "vbr quality")
 		if err != nil {
 			return nil, err
 		}
-	case input.Mp3.CBR:
+	case file.Mp3.CBR:
 		// try to get bitrate
 		bitRate, err = parseIntValue(data, "mp3-bit-rate", "bit rate")
 		if err != nil {
 			return nil, err
 		}
-	case input.Mp3.ABR:
+	case file.Mp3.ABR:
 		// try to get bitrate
 		bitRate, err = parseIntValue(data, "mp3-bit-rate", "bit rate")
 		if err != nil {
@@ -168,7 +180,7 @@ func parseMp3Sink(data url.Values) (input.BuildFunc, error) {
 		}
 	}
 
-	return input.Mp3.Build(bitRateMode, bitRate, channelMode, useQuality, quality)
+	return file.Mp3.BuildSink(bitRateMode, bitRate, channelMode, useQuality, quality)
 }
 
 // parseIntValue parses value of key provided in the html form.
@@ -191,6 +203,7 @@ func parseIntValue(data url.Values, key, name string) (int, error) {
 func parseBoolValue(data url.Values, key, name string) (bool, error) {
 	str := data.Get(key)
 	if str == "" {
+
 		return false, nil
 	}
 
@@ -201,7 +214,7 @@ func parseBoolValue(data url.Values, key, name string) (bool, error) {
 	return val, nil
 }
 
-const convertHTML = `
+const encodeHTML = `
 <html>
 <head>
     <style>
@@ -292,7 +305,7 @@ const convertHTML = `
             document.getElementById(id).style.display = mode;
         }
         document.addEventListener('DOMContentLoaded', function(event) {
-            document.getElementById('convert').reset();
+            document.getElementById('encode').reset();
             // base form handlers
             document.getElementById('input-file').addEventListener('change', onInputFileChange);
             document.getElementById('output-format').addEventListener('change', onOutputFormatChange);
@@ -331,10 +344,10 @@ const convertHTML = `
             }
         }
         function onSubmitClick(){
-            var convert = document.getElementById('convert');
+            var encode = document.getElementById('encode');
             var file = getFile();
             var ext = getFileExtension(getFileName(file));
-            convert.action = ext;
+            encode.action = ext;
             var size = file.files[0].size;
             switch (ext) {
             {{ range $ext, $maxSize := .MaxSizes }}
@@ -346,14 +359,14 @@ const convertHTML = `
                 break;
             {{ end }}
             }  
-            convert.submit();  
+            encode.submit();  
         }
     </script> 
 </head>
 <body>
     <div class="container">
-        <h2>phono convert</h1>
-        <form id="convert" enctype="multipart/form-data" method="post">
+        <h2>phono encode</h1>
+        <form id="encode" enctype="multipart/form-data" method="post">
         <div class="file">
             <input id="input-file" type="file" name="input-file" accept="{{.Accept}}"/>
             <label id="input-file-label" for="input-file">select file</label>
@@ -411,7 +424,7 @@ const convertHTML = `
         </div>
         </form>
         <div class="submit" style="display:none">
-            <button id="submit-button" type="button">convert</button> 
+            <button id="submit-button" type="button">encode</button> 
         </div>
         <div class="footer">
             <div class="container">

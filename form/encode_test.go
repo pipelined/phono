@@ -4,24 +4,25 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/pipelined/phono/input/form"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/pipelined/phono/form"
 )
 
-func TestConvertForm(t *testing.T) {
+func TestEncodeForm(t *testing.T) {
 	wavMaxSize := int64(10)
 	mp3MaxSize := int64(15)
-	convertForm := form.Convert{
+	encodeForm := form.Encode{
 		WavMaxSize: wavMaxSize,
 		Mp3MaxSize: mp3MaxSize,
 	}
 
 	// test form data
-	d := convertForm.Data()
+	d := encodeForm.Data()
 	assert.NotNil(t, d)
 
 	// test file key
-	k := convertForm.FileKey()
+	k := encodeForm.FileKey()
 	assert.NotEqual(t, "", k)
 
 	// test form max input size
@@ -48,7 +49,7 @@ func TestConvertForm(t *testing.T) {
 		},
 	}
 	for _, test := range inputSizeTests {
-		size, err := convertForm.InputMaxSize(test.url)
+		size, err := encodeForm.InputMaxSize(test.url)
 		if test.negative {
 			assert.NotNil(t, err)
 			assert.Equal(t, int64(0), size)
@@ -178,7 +179,7 @@ func TestConvertForm(t *testing.T) {
 	}
 
 	for _, test := range parseSinkTests {
-		buildFn, ext, err := convertForm.ParseSink(test.values)
+		buildFn, ext, err := encodeForm.ParseSink(test.values)
 		if test.negative {
 			assert.NotNil(t, err)
 			assert.Equal(t, "", ext)

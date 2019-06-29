@@ -1,5 +1,5 @@
-// Package controller provides handlers to process user input and manipulate with pipes.
-package controller
+// Package handler provides handlers to process user input and manipulate with pipes.
+package handler
 
 import (
 	"fmt"
@@ -8,14 +8,25 @@ import (
 	"log"
 	"mime"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 
-	"github.com/pipelined/phono/input"
-	"github.com/pipelined/pipe"
+	"github.com/pipelined/phono/file"
+	"github.com/pipelined/phono/pipes"
 )
 
-// Convert form files to the format provided by form.
+type (
+	// EncodeForm provides html form to the user. The form contains all information needed for conversion.
+	EncodeForm interface {
+		Data() []byte
+		InputMaxSize(url string) (int64, error)
+		FileKey() string
+		ParseSink(data url.Values) (file.BuildSinkFunc, string, error)
+	}
+)
+
+// Encode form files to the format provided by form.
 // Process request steps:
 //	1. Retrieve input format from URL
 //	2. Use http.MaxBytesReader to avoid memory abuse
@@ -23,7 +34,7 @@ import (
 //	4. Create temp file
 //	5. Run conversion
 //	6. Send result file
-func Convert(form input.ConvertForm, bufferSize int, tempDir string) http.Handler {
+func Encode(form EncodeForm, bufferSize int, tempDir string) http.Handler {
 	formData := form.Data()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -57,14 +68,14 @@ func Convert(form input.ConvertForm, bufferSize int, tempDir string) http.Handle
 			defer f.Close()
 
 			// parse pump
-			pump, err := input.FilePump(handler.Filename, f)
+			buildPump, err := file.Pump(handler.Filename)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 
 			// parse sink and validate parameters
-			buildFn, ext, err := form.ParseSink(r.MultipartForm.Value)
+			buildSink, ext, err := form.ParseSink(r.MultipartForm.Value)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
@@ -78,8 +89,8 @@ func Convert(form input.ConvertForm, bufferSize int, tempDir string) http.Handle
 			}
 			defer cleanUp(tempFile)
 
-			// convert file using temp file
-			if err = convert(bufferSize, pump, buildFn(tempFile)); err != nil {
+			// encode file using temp file
+			if err = pipes.Encode(r.Context(), bufferSize, buildPump(f), buildSink(tempFile)); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
@@ -109,25 +120,6 @@ func Convert(form input.ConvertForm, bufferSize int, tempDir string) http.Handle
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	})
-}
-
-// convert using pump as the source and SinkBuilder as destination.
-func convert(bufferSize int, pump pipe.Pump, sink pipe.Sink) error {
-	// build convert pipe
-	convert, err := pipe.New(bufferSize,
-		pipe.WithPump(pump),
-		pipe.WithSinks(sink),
-	)
-	if err != nil {
-		return fmt.Errorf("Failed to build pipe: %v", err)
-	}
-
-	// run conversion
-	err = pipe.Wait(convert.Run())
-	if err != nil {
-		return fmt.Errorf("Failed to execute pipe: %v", err)
-	}
-	return nil
 }
 
 // outFileName return output file name. It replaces input format extension with output.

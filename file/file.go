@@ -1,37 +1,27 @@
-// Package input provides types to parse user input for pipe components.
-package input
+package file
 
 import (
 	"fmt"
 	"io"
-	"net/url"
+	"path/filepath"
 	"strings"
-
-	"github.com/pipelined/signal"
 
 	"github.com/pipelined/mp3"
 	"github.com/pipelined/pipe"
+	"github.com/pipelined/signal"
 	"github.com/pipelined/wav"
 )
 
 type (
-	// ConvertForm provides html form to the user. The form contains all information needed for conversion.
-	ConvertForm interface {
-		Data() []byte
-		InputMaxSize(url string) (int64, error)
-		FileKey() string
-		ParseSink(data url.Values) (BuildFunc, string, error)
-	}
-
 	wavFormat struct {
 		DefaultExtension string
-		Extensions       []string
+		Extensions       map[string]struct{}
 		BitDepths        map[signal.BitDepth]struct{}
 	}
 
 	mp3Format struct {
 		DefaultExtension string
-		Extensions       []string
+		Extensions       map[string]struct{}
 		MaxBitRate       int
 		MinBitRate       int
 		ChannelModes     map[mp3.ChannelMode]struct{}
@@ -40,15 +30,21 @@ type (
 		ABR              string
 	}
 
-	// BuildFunc is used to inject WriteSeeker into Sink.
-	BuildFunc func(io.WriteSeeker) pipe.Sink
+	// BuildPumpFunc is used to inject ReadSeeker into Pump.
+	BuildPumpFunc func(io.ReadSeeker) pipe.Pump
+
+	// BuildSinkFunc is used to inject WriteSeeker into Sink.
+	BuildSinkFunc func(io.WriteSeeker) pipe.Sink
 )
 
 var (
 	// Wav provides logic required to process input of wav files.
 	Wav = wavFormat{
 		DefaultExtension: ".wav",
-		Extensions:       []string{".wav", ".wave"},
+		Extensions: map[string]struct{}{
+			".wav":  {},
+			".wave": {},
+		},
 		BitDepths: map[signal.BitDepth]struct{}{
 			signal.BitDepth8:  {},
 			signal.BitDepth16: {},
@@ -60,9 +56,11 @@ var (
 	// Mp3 provides logic required to process input of mp3 files.
 	Mp3 = mp3Format{
 		DefaultExtension: ".mp3",
-		Extensions:       []string{".mp3"},
-		MinBitRate:       8,
-		MaxBitRate:       320,
+		Extensions: map[string]struct{}{
+			".mp3": {},
+		},
+		MinBitRate: 8,
+		MaxBitRate: 320,
 		ChannelModes: map[mp3.ChannelMode]struct{}{
 			mp3.JointStereo: {},
 			mp3.Stereo:      {},
@@ -74,20 +72,33 @@ var (
 	}
 )
 
-// FilePump returns pump for provided file source. Type of the pump is determined by file extension.
-func FilePump(fileName string, rs io.ReadSeeker) (pipe.Pump, error) {
+// Pump returns pump for provided file source. Type of the pump is determined by file extension.
+func Pump(fileName string) (BuildPumpFunc, error) {
+	ext := strings.ToLower(filepath.Ext(fileName))
 	switch {
-	case HasExtension(fileName, Wav.Extensions):
-		return &wav.Pump{ReadSeeker: rs}, nil
-	case HasExtension(fileName, Mp3.Extensions):
-		return &mp3.Pump{Reader: rs}, nil
+	case hasExtension(ext, Wav.Extensions):
+		return func(rs io.ReadSeeker) pipe.Pump {
+			return &wav.Pump{ReadSeeker: rs}
+		}, nil
+	case hasExtension(ext, Mp3.Extensions):
+		return func(rs io.ReadSeeker) pipe.Pump {
+			return &mp3.Pump{Reader: rs}
+		}, nil
 	default:
 		return nil, fmt.Errorf("File has unsupported extension: %v", fileName)
 	}
 }
 
-// Build validates all parameters required to build wav sink. If valid, build closure is returned.
-func (f wavFormat) Build(bitDepth int) (BuildFunc, error) {
+// hasExtension validates if filename has one of passed extensions.
+// Filename is lower-cased before comparison.
+func hasExtension(ext string, exts map[string]struct{}) bool {
+	_, ok := exts[ext]
+	return ok
+}
+
+// BuildSink validates all parameters required to build wav sink. If valid, build closure is returned.
+// Closure allows to postpone io opertaions and do them only after all sink parameters are validated.
+func (f wavFormat) BuildSink(bitDepth int) (BuildSinkFunc, error) {
 	bd := signal.BitDepth(bitDepth)
 	if _, ok := f.BitDepths[bd]; !ok {
 		return nil, fmt.Errorf("Bit depth %v is not supported", bitDepth)
@@ -101,15 +112,16 @@ func (f wavFormat) Build(bitDepth int) (BuildFunc, error) {
 	}, nil
 }
 
-// Build validates all parameters required to build mp3 sink. If valid, build closure is returned.
-func (f mp3Format) Build(bitRateMode string, bitRate, channelMode int, useQuality bool, quality int) (BuildFunc, error) {
+// BuildSink validates all parameters required to build mp3 sink. If valid, build closure is returned.
+// Closure allows to postpone io opertaions and do them only after all sink parameters are validated.
+func (f mp3Format) BuildSink(bitRateMode string, bitRate, channelMode int, useQuality bool, quality int) (BuildSinkFunc, error) {
 	cm := mp3.ChannelMode(channelMode)
 	if _, ok := f.ChannelModes[cm]; !ok {
 		return nil, fmt.Errorf("Channel mode %v is not supported", cm)
 	}
 
 	var brm mp3.BitRateMode
-	switch bitRateMode {
+	switch strings.ToUpper(bitRateMode) {
 	case f.VBR:
 		if bitRate < 0 || bitRate > 9 {
 			return nil, fmt.Errorf("VBR quality %v is not supported", bitRate)
@@ -126,7 +138,7 @@ func (f mp3Format) Build(bitRateMode string, bitRate, channelMode int, useQualit
 		}
 		brm = mp3.ABR(bitRate)
 	default:
-		return nil, fmt.Errorf("VBR mode %v is not supported", bitRateMode)
+		return nil, fmt.Errorf("Bit rate mode %v is not supported", bitRateMode)
 	}
 
 	if useQuality {
@@ -154,18 +166,4 @@ func (f mp3Format) bitRate(v int) error {
 		return fmt.Errorf("Bit rate %v is not supported. Provide value between %d and %d", v, f.MinBitRate, f.MaxBitRate)
 	}
 	return nil
-}
-
-// func (f mp3Format) BitRateMode(bitRateMode string, value int) mp3.BitRateMode {}
-
-// HasExtension validates if filename has one of passed extensions.
-// Filename is lower-cased before comparison.
-func HasExtension(fileName string, exts []string) bool {
-	name := strings.ToLower(fileName)
-	for _, ext := range exts {
-		if strings.HasSuffix(name, ext) {
-			return true
-		}
-	}
-	return false
 }

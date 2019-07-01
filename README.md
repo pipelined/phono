@@ -6,8 +6,6 @@
 [![codecov](https://codecov.io/gh/pipelined/phono/branch/master/graph/badge.svg)](https://codecov.io/gh/pipelined/phono)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fpipelined%2Fphono.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fpipelined%2Fphono?ref=badge_shield)
 
-----
-
 `phono` is a command for audio processing. It's build on top of [pipelined DSP framework](https://github.com/pipelined/pipe).
 
 ## Features

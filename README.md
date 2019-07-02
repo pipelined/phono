@@ -8,13 +8,19 @@
 
 `phono` is a command for audio processing. It's build on top of [pipelined DSP framework](https://github.com/pipelined/pipe).
 
-## Features
+## Installation
 
-`phono` allows to decode/encode various audio files in cli or interactive web UI mode.
-
-## Dependencies
+Prerequisites:
 
 * [lame](http://lame.sourceforge.net/) to enable mp3 encoding
+
+To link lame from custom location, set `CGO_CFLAGS=-I<path-to-lame.h>` environment variable.
+
+`go get github.com/pipelined/phono`
+
+## Usage
+
+`phono encode` allows to decode/encode various audio files in cli or interactive web UI mode.
 
 ## Contributing
 

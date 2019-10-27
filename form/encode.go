@@ -12,50 +12,6 @@ import (
 	"github.com/pipelined/phono/file"
 )
 
-// encodeData provides a data for encode form, so user can define conversion parameters.
-type encodeData struct {
-	Accept     string
-	OutFormats map[string]string
-	Wav        interface{}
-	Mp3        interface{}
-	MaxSizes   map[string]int64
-}
-
-const (
-	// FileKey is the id of the file input in the HTML form.
-	FileKey = "input-file"
-)
-
-func maxSizes(wavMaxSize, mp3MaxSize int64) map[string]int64 {
-	m := make(map[string]int64)
-	for ext := range file.Mp3.Extensions {
-		m[ext] = mp3MaxSize
-	}
-	for ext := range file.Wav.Extensions {
-		m[ext] = wavMaxSize
-	}
-	return m
-}
-
-func mergeExtensions(exts ...map[string]struct{}) []string {
-	result := make([]string, 0)
-	for _, m := range exts {
-		for ext := range m {
-			result = append(result, ext)
-		}
-	}
-	return result
-}
-
-// outFormats maps the extensions with values without dots.
-func outFormats(exts ...string) map[string]string {
-	m := make(map[string]string)
-	for _, ext := range exts {
-		m[ext] = ext[1:]
-	}
-	return m
-}
-
 var (
 	extensions = mergeExtensions(
 		file.Wav.Extensions,
@@ -76,23 +32,77 @@ var (
 	encodeTmpl = template.Must(template.New("encode").Parse(encodeHTML))
 )
 
+func mergeExtensions(exts ...map[string]struct{}) []string {
+	result := make([]string, 0)
+	for _, m := range exts {
+		for ext := range m {
+			result = append(result, ext)
+		}
+	}
+	return result
+}
+
+// outFormats maps the extensions with values without dots.
+func outFormats(exts ...string) map[string]string {
+	m := make(map[string]string)
+	for _, ext := range exts {
+		m[ext] = ext[1:]
+	}
+	return m
+}
+
 // Encode provides user interaction via http form.
-type Encode struct {
-	WavMaxSize  int64
-	Mp3MaxSize  int64
-	FlacMaxSize int64
+type (
+	Encode struct {
+		WavMaxSize  int64
+		Mp3MaxSize  int64
+		FlacMaxSize int64
+	}
+
+	// encodeData provides a data for encode form, so user can define conversion parameters.
+	encodeData struct {
+		Accept     string
+		OutFormats map[string]string
+		Wav        interface{}
+		Mp3        interface{}
+		MaxSizes   map[string]int64
+	}
+)
+
+const (
+	// FileKey is the id of the file input in the HTML form.
+	FileKey = "input-file"
+)
+
+// FileKey returns a name of form file value.
+func (Encode) FileKey() string {
+	return FileKey
 }
 
 // Data returns serialized form data, ready to be served.
 func (c Encode) Data() []byte {
 	d := encodeForm
-	d.MaxSizes = maxSizes(c.WavMaxSize, c.Mp3MaxSize)
+	d.MaxSizes = maxSizes(c.WavMaxSize, c.Mp3MaxSize, c.FlacMaxSize)
 
 	var b bytes.Buffer
 	if err := encodeTmpl.Execute(&b, d); err != nil {
 		panic(fmt.Sprintf("Failed to parse encode template: %v", err))
 	}
 	return b.Bytes()
+}
+
+func maxSizes(wav, mp3, flac int64) map[string]int64 {
+	m := make(map[string]int64)
+	for ext := range file.Mp3.Extensions {
+		m[ext] = mp3
+	}
+	for ext := range file.Wav.Extensions {
+		m[ext] = wav
+	}
+	for ext := range file.Flac.Extensions {
+		m[ext] = flac
+	}
+	return m
 }
 
 // InputMaxSize of file from http request.
@@ -108,11 +118,6 @@ func (c Encode) InputMaxSize(url string) (int64, error) {
 	default:
 		return 0, fmt.Errorf("Format %s not supported", ext)
 	}
-}
-
-// FileKey returns a name of form file value.
-func (Encode) FileKey() string {
-	return FileKey
 }
 
 // ParseSink provided via form.

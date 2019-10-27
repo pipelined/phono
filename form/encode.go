@@ -57,13 +57,20 @@ func outFormats(exts ...string) map[string]string {
 }
 
 var (
-	extensions = mergeExtensions(file.Wav.Extensions, file.Mp3.Extensions)
+	extensions = mergeExtensions(
+		file.Wav.Extensions,
+		file.Mp3.Extensions,
+		file.Flac.Extensions,
+	)
 
 	encodeForm = encodeData{
-		Accept:     strings.Join(extensions, ", "),
-		OutFormats: outFormats(file.Wav.DefaultExtension, file.Mp3.DefaultExtension),
-		Wav:        file.Wav,
-		Mp3:        file.Mp3,
+		Accept: strings.Join(extensions, ", "),
+		OutFormats: outFormats(
+			file.Wav.DefaultExtension,
+			file.Mp3.DefaultExtension,
+		),
+		Wav: file.Wav,
+		Mp3: file.Mp3,
 	}
 
 	encodeTmpl = template.Must(template.New("encode").Parse(encodeHTML))
@@ -71,8 +78,9 @@ var (
 
 // Encode provides user interaction via http form.
 type Encode struct {
-	WavMaxSize int64
-	Mp3MaxSize int64
+	WavMaxSize  int64
+	Mp3MaxSize  int64
+	FlacMaxSize int64
 }
 
 // Data returns serialized form data, ready to be served.
@@ -95,6 +103,8 @@ func (c Encode) InputMaxSize(url string) (int64, error) {
 		return c.Mp3MaxSize, nil
 	case file.Wav.DefaultExtension:
 		return c.WavMaxSize, nil
+	case file.Flac.DefaultExtension:
+		return c.FlacMaxSize, nil
 	default:
 		return 0, fmt.Errorf("Format %s not supported", ext)
 	}
@@ -230,10 +240,10 @@ const encodeHTML = `
         button {
             background:none!important;
             color:inherit;
-            border:none; 
+            border:none;
             padding:0!important;
             font: inherit;
-            border-bottom:1px solid #444; 
+            border-bottom:1px solid #444;
             cursor: pointer;
         }
         .file {
@@ -275,7 +285,7 @@ const encodeHTML = `
         #input-file-label {
             cursor: pointer;
             padding:0!important;
-            border-bottom:1px solid #444; 
+            border-bottom:1px solid #444;
         }
     </style>
     <script type="text/javascript">
@@ -351,17 +361,17 @@ const encodeHTML = `
             var size = file.files[0].size;
             switch (ext) {
             {{ range $ext, $maxSize := .MaxSizes }}
-            case '{{$ext}}': 
+            case '{{$ext}}':
                 if ({{ $maxSize }} > 0 && {{ $maxSize }} < size) {
                     alert('File is too big. Maximum allowed size: '.concat(humanFileSize({{ $maxSize }})))
                     return;
-                } 
+                }
                 break;
             {{ end }}
-            }  
-            encode.submit();  
+            }
+            encode.submit();
         }
-    </script> 
+    </script>
 </head>
 <body>
     <div class="container">
@@ -373,7 +383,7 @@ const encodeHTML = `
         </div>
         <div class="outputs">
             <div id="output-format-block" class="option">
-                format 
+                format
                 <select id="output-format" name="format">
                     <option hidden disabled selected value>select</option>
                     {{range $key, $value := .OutFormats}}
@@ -408,7 +418,7 @@ const encodeHTML = `
                 <div class="mp3-bit-rate-mode-options mp3-{{ .Mp3.ABR }}-options mp3-{{ .Mp3.CBR }}-options">
                     bit rate [8-320]
                     <input type="text" class="option" name="mp3-bit-rate" maxlength="3" size="3">
-                </div> 
+                </div>
                 <div class="mp3-bit-rate-mode-options mp3-{{ .Mp3.VBR }}-options">
                     vbr quality [0-9]
                     <input type="text" class="option" name="mp3-vbr-quality" maxlength="1" size="3">
@@ -418,13 +428,13 @@ const encodeHTML = `
                     <div id="mp3-quality-value" class="mp3-quality" style="visibility:hidden">
                         [0-9]
                         <input type="text" class="option" name="mp3-quality" maxlength="1" size="3">
-                    </div> 
+                    </div>
                 </div>
             </div>
         </div>
         </form>
         <div class="submit" style="display:none">
-            <button id="submit-button" type="button">encode</button> 
+            <button id="submit-button" type="button">encode</button>
         </div>
         <div class="footer">
             <div class="container">

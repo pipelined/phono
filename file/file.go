@@ -43,6 +43,11 @@ type (
 	BuildSinkFunc func(io.WriteSeeker) pipe.Sink
 )
 
+// Maybe use this to replace BuildSink?
+// type OutputOptions interface {
+// 	Sink() pipe.Sink
+// }
+
 var (
 	// Wav provides structures required to handle wav files.
 	Wav = wavFormat{

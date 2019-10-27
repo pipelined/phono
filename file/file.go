@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/pipelined/flac"
 	"github.com/pipelined/mp3"
 	"github.com/pipelined/pipe"
 	"github.com/pipelined/signal"
@@ -30,6 +31,11 @@ type (
 		ABR              string
 	}
 
+	flacFormat struct {
+		DefaultExtension string
+		Extensions       map[string]struct{}
+	}
+
 	// BuildPumpFunc is used to inject ReadSeeker into Pump.
 	BuildPumpFunc func(io.ReadSeeker) pipe.Pump
 
@@ -38,7 +44,7 @@ type (
 )
 
 var (
-	// Wav provides logic required to process input of wav files.
+	// Wav provides structures required to handle wav files.
 	Wav = wavFormat{
 		DefaultExtension: ".wav",
 		Extensions: map[string]struct{}{
@@ -53,7 +59,7 @@ var (
 		},
 	}
 
-	// Mp3 provides logic required to process input of mp3 files.
+	// Mp3 provides structures required to handle mp3 files.
 	Mp3 = mp3Format{
 		DefaultExtension: ".mp3",
 		Extensions: map[string]struct{}{
@@ -70,6 +76,14 @@ var (
 		ABR: "ABR",
 		CBR: "CBR",
 	}
+
+	// Flac provides structures required to handle flac files.
+	Flac = flacFormat{
+		DefaultExtension: ".flac",
+		Extensions: map[string]struct{}{
+			".flac": {},
+		},
+	}
 )
 
 // Pump returns pump for provided file source. Type of the pump is determined by file extension.
@@ -83,6 +97,10 @@ func Pump(fileName string) (BuildPumpFunc, error) {
 	case hasExtension(ext, Mp3.Extensions):
 		return func(rs io.ReadSeeker) pipe.Pump {
 			return &mp3.Pump{Reader: rs}
+		}, nil
+	case hasExtension(ext, Flac.Extensions):
+		return func(rs io.ReadSeeker) pipe.Pump {
+			return &flac.Pump{Reader: rs}
 		}, nil
 	default:
 		return nil, fmt.Errorf("File has unsupported extension: %v", fileName)

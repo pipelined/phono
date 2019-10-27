@@ -20,6 +20,9 @@ func TestFilePump(t *testing.T) {
 			fileName: "test.mp3",
 		},
 		{
+			fileName: "test.flac",
+		},
+		{
 			fileName: "",
 			negative: true,
 		},

@@ -22,7 +22,7 @@ type (
 		Data() []byte
 		InputMaxSize(url string) (int64, error)
 		FileKey() string
-		ParseSink(data url.Values) (file.BuildSinkFunc, string, error)
+		ParseSink(data url.Values) (file.Sink, string, error)
 	}
 )
 
@@ -67,15 +67,15 @@ func Encode(form EncodeForm, bufferSize int, tempDir string) http.Handler {
 			}
 			defer f.Close()
 
-			// parse pump
-			buildPump, err := file.Pump(handler.Filename)
+			// parse input format
+			format, err := file.ParseFormat(handler.Filename)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 
 			// parse sink and validate parameters
-			buildSink, ext, err := form.ParseSink(r.MultipartForm.Value)
+			sink, ext, err := form.ParseSink(r.MultipartForm.Value)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
@@ -90,7 +90,7 @@ func Encode(form EncodeForm, bufferSize int, tempDir string) http.Handler {
 			defer cleanUp(tempFile)
 
 			// encode file using temp file
-			if err = pipes.Encode(r.Context(), bufferSize, buildPump(f), buildSink(tempFile)); err != nil {
+			if err = pipes.Encode(r.Context(), bufferSize, format.Pump(f), sink(tempFile)); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}

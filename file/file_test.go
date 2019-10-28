@@ -20,18 +20,21 @@ func TestFilePump(t *testing.T) {
 			fileName: "test.mp3",
 		},
 		{
+			fileName: "test.flac",
+		},
+		{
 			fileName: "",
 			negative: true,
 		},
 	}
 
 	for _, test := range tests {
-		buildPump, err := file.Pump(test.fileName)
+		format, err := file.ParseFormat(test.fileName)
 		if test.negative {
 			assert.NotNil(t, err)
 		} else {
-			assert.NotNil(t, buildPump)
-			pump := buildPump(nil)
+			assert.NotNil(t, format)
+			pump := format.Pump(nil)
 			assert.NotNil(t, pump)
 		}
 	}
@@ -51,15 +54,15 @@ func TestBuildWav(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		buildFn, err := file.Wav.BuildSink(test.bitDepth)
+		sinkFn, err := file.WAVSink(test.bitDepth)
 		if test.negative {
 			assert.NotNil(t, err)
-			assert.Nil(t, buildFn)
+			assert.Nil(t, sinkFn)
 		} else {
 			assert.Nil(t, err)
-			assert.NotNil(t, buildFn)
-			pump := buildFn(nil)
-			assert.NotNil(t, pump)
+			assert.NotNil(t, sinkFn)
+			sink := sinkFn(nil)
+			assert.NotNil(t, sink)
 		}
 	}
 }
@@ -74,7 +77,7 @@ func TestBuildMp3(t *testing.T) {
 		negative    bool
 	}{
 		{
-			bitRateMode: file.Mp3.VBR,
+			bitRateMode: file.MP3.VBR,
 			bitRate:     1,
 			channelMode: 1,
 			useQuality:  true,
@@ -86,12 +89,12 @@ func TestBuildMp3(t *testing.T) {
 			useQuality:  true,
 		},
 		{
-			bitRateMode: file.Mp3.CBR,
+			bitRateMode: file.MP3.CBR,
 			bitRate:     320,
 			channelMode: 2,
 		},
 		{
-			bitRateMode: file.Mp3.ABR,
+			bitRateMode: file.MP3.ABR,
 			bitRate:     192,
 			channelMode: 1,
 			useQuality:  true,
@@ -101,34 +104,34 @@ func TestBuildMp3(t *testing.T) {
 			negative:    true,
 		},
 		{
-			bitRateMode: file.Mp3.VBR,
+			bitRateMode: file.MP3.VBR,
 			bitRate:     10,
 			negative:    true,
 		},
 		{
-			bitRateMode: file.Mp3.CBR,
+			bitRateMode: file.MP3.CBR,
 			bitRate:     1,
 			negative:    true,
 		},
 		{
-			bitRateMode: file.Mp3.ABR,
+			bitRateMode: file.MP3.ABR,
 			bitRate:     1,
 			negative:    true,
 		},
 		{
-			bitRateMode: file.Mp3.VBR,
-			bitRate:     1,
-			channelMode: 100,
-			negative:    true,
-		},
-		{
-			bitRateMode: file.Mp3.VBR,
+			bitRateMode: file.MP3.VBR,
 			bitRate:     1,
 			channelMode: 100,
 			negative:    true,
 		},
 		{
-			bitRateMode: file.Mp3.VBR,
+			bitRateMode: file.MP3.VBR,
+			bitRate:     1,
+			channelMode: 100,
+			negative:    true,
+		},
+		{
+			bitRateMode: file.MP3.VBR,
 			bitRate:     1,
 			channelMode: 1,
 			useQuality:  true,
@@ -137,7 +140,7 @@ func TestBuildMp3(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		buildFn, err := file.Mp3.BuildSink(
+		sinkFn, err := file.MP3Sink(
 			test.bitRateMode,
 			test.bitRate,
 			test.channelMode,
@@ -146,12 +149,12 @@ func TestBuildMp3(t *testing.T) {
 		)
 		if test.negative {
 			assert.NotNil(t, err)
-			assert.Nil(t, buildFn)
+			assert.Nil(t, sinkFn)
 		} else {
 			assert.Nil(t, err)
-			assert.NotNil(t, buildFn)
-			pump := buildFn(nil)
-			assert.NotNil(t, pump)
+			assert.NotNil(t, sinkFn)
+			sink := sinkFn(nil)
+			assert.NotNil(t, sink)
 		}
 	}
 }

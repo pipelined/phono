@@ -30,7 +30,7 @@ var (
 			if cmd.Flags().Changed("quality") {
 				useQuality = true
 			}
-			buildFn, err := file.Mp3.BuildSink(
+			sink, err := file.MP3Sink(
 				encodeMp3.bitRateMode,
 				encodeMp3.bitRate,
 				encodeMp3.channelMode,
@@ -46,8 +46,8 @@ var (
 				encodeMp3.recursive,
 				encodeMp3.outPath,
 				encodeMp3.bufferSize,
-				buildFn,
-				file.Mp3.DefaultExtension,
+				sink,
+				file.MP3.DefaultExtension(),
 			)
 		},
 	}

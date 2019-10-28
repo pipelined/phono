@@ -10,8 +10,8 @@ import (
 // Encode using Pump as the source and Sinks as destination.
 func Encode(ctx context.Context, bufferSize int, pump pipe.Pump, sinks ...pipe.Sink) error {
 	// build encode pipe
-	l, err := pipe.Line(
-		&pipe.Pipe{
+	l, err := pipe.New(
+		&pipe.Line{
 			Pump:  pump,
 			Sinks: sinks,
 		},

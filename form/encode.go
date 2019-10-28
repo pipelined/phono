@@ -14,19 +14,19 @@ import (
 
 var (
 	extensions = mergeExtensions(
-		file.Wav.Extensions,
-		file.Mp3.Extensions,
-		file.Flac.Extensions,
+		file.WAV.Extensions(),
+		file.MP3.Extensions(),
+		file.FLAC.Extensions(),
 	)
 
 	encodeForm = encodeData{
 		Accept: strings.Join(extensions, ", "),
 		OutFormats: outFormats(
-			file.Wav.DefaultExtension,
-			file.Mp3.DefaultExtension,
+			file.WAV.DefaultExtension(),
+			file.MP3.DefaultExtension(),
 		),
-		Wav: file.Wav,
-		Mp3: file.Mp3,
+		WAV: file.WAV,
+		MP3: file.MP3,
 	}
 
 	encodeTmpl = template.Must(template.New("encode").Parse(encodeHTML))
@@ -63,8 +63,8 @@ type (
 	encodeData struct {
 		Accept     string
 		OutFormats map[string]string
-		Wav        interface{}
-		Mp3        interface{}
+		WAV        interface{}
+		MP3        interface{}
 		MaxSizes   map[string]int64
 	}
 )
@@ -93,13 +93,13 @@ func (c Encode) Data() []byte {
 
 func maxSizes(wav, mp3, flac int64) map[string]int64 {
 	m := make(map[string]int64)
-	for ext := range file.Mp3.Extensions {
+	for ext := range file.MP3.Extensions() {
 		m[ext] = mp3
 	}
-	for ext := range file.Wav.Extensions {
+	for ext := range file.WAV.Extensions() {
 		m[ext] = wav
 	}
-	for ext := range file.Flac.Extensions {
+	for ext := range file.FLAC.Extensions() {
 		m[ext] = flac
 	}
 	return m
@@ -109,11 +109,11 @@ func maxSizes(wav, mp3, flac int64) map[string]int64 {
 func (c Encode) InputMaxSize(url string) (int64, error) {
 	ext := strings.ToLower(path.Base(url))
 	switch ext {
-	case file.Mp3.DefaultExtension:
+	case file.MP3.DefaultExtension():
 		return c.Mp3MaxSize, nil
-	case file.Wav.DefaultExtension:
+	case file.WAV.DefaultExtension():
 		return c.WavMaxSize, nil
-	case file.Flac.DefaultExtension:
+	case file.FLAC.DefaultExtension():
 		return c.FlacMaxSize, nil
 	default:
 		return 0, fmt.Errorf("Format %s not supported", ext)
@@ -122,13 +122,13 @@ func (c Encode) InputMaxSize(url string) (int64, error) {
 
 // ParseSink provided via form.
 // This function should return extensions, sinkbuilder
-func (Encode) ParseSink(data url.Values) (fn file.BuildSinkFunc, ext string, err error) {
+func (Encode) ParseSink(data url.Values) (fn file.Sink, ext string, err error) {
 	ext = strings.ToLower(data.Get("format"))
 	switch ext {
-	case file.Wav.DefaultExtension:
-		fn, err = parseWavSink(data)
-	case file.Mp3.DefaultExtension:
-		fn, err = parseMp3Sink(data)
+	case file.WAV.DefaultExtension():
+		fn, err = parseWAVSink(data)
+	case file.MP3.DefaultExtension():
+		fn, err = parseMP3Sink(data)
 	default:
 		err = fmt.Errorf("Unsupported format: %v", ext)
 	}
@@ -138,16 +138,16 @@ func (Encode) ParseSink(data url.Values) (fn file.BuildSinkFunc, ext string, err
 	return
 }
 
-func parseWavSink(data url.Values) (file.BuildSinkFunc, error) {
+func parseWAVSink(data url.Values) (file.Sink, error) {
 	// try to get bit depth
 	bitDepth, err := parseIntValue(data, "wav-bit-depth", "bit depth")
 	if err != nil {
 		return nil, err
 	}
-	return file.Wav.BuildSink(bitDepth)
+	return file.WAVSink(bitDepth)
 }
 
-func parseMp3Sink(data url.Values) (file.BuildSinkFunc, error) {
+func parseMP3Sink(data url.Values) (file.Sink, error) {
 	// try to get channel mode
 	channelMode, err := parseIntValue(data, "mp3-channel-mode", "channel mode")
 	if err != nil {
@@ -162,19 +162,19 @@ func parseMp3Sink(data url.Values) (file.BuildSinkFunc, error) {
 
 	var bitRate int
 	switch bitRateMode {
-	case file.Mp3.VBR:
+	case file.MP3.VBR:
 		// try to get vbr quality
 		bitRate, err = parseIntValue(data, "mp3-vbr-quality", "vbr quality")
 		if err != nil {
 			return nil, err
 		}
-	case file.Mp3.CBR:
+	case file.MP3.CBR:
 		// try to get bitrate
 		bitRate, err = parseIntValue(data, "mp3-bit-rate", "bit rate")
 		if err != nil {
 			return nil, err
 		}
-	case file.Mp3.ABR:
+	case file.MP3.ABR:
 		// try to get bitrate
 		bitRate, err = parseIntValue(data, "mp3-bit-rate", "bit rate")
 		if err != nil {
@@ -195,7 +195,7 @@ func parseMp3Sink(data url.Values) (file.BuildSinkFunc, error) {
 		}
 	}
 
-	return file.Mp3.BuildSink(bitRateMode, bitRate, channelMode, useQuality, quality)
+	return file.MP3Sink(bitRateMode, bitRate, channelMode, useQuality, quality)
 }
 
 // parseIntValue parses value of key provided in the html form.
@@ -326,7 +326,7 @@ const encodeHTML = `
             document.getElementById('output-format').addEventListener('change', onOutputFormatChange);
             document.getElementById('submit-button').addEventListener('click', onSubmitClick);
             // mp3 handlers
-            document.getElementById('mp3-bit-rate-mode').addEventListener('click', onMp3BitRateModeChange);
+            document.getElementById('mp3-bit-rate-mode').addEventListener('change', onMp3BitRateModeChange);
             document.getElementById('mp3-use-quality').addEventListener('click', onMp3UseQUalityChange);
         });
         function onInputFileChange(){
@@ -400,7 +400,7 @@ const encodeHTML = `
                 bit depth
                 <select name="wav-bit-depth" class="option">
                     <option hidden disabled selected value>select</option>
-                    {{range $key, $value := .Wav.BitDepths}}
+                    {{range $key, $value := .WAV.BitDepths}}
                         <option value="{{ printf "%d" $key }}">{{ $key }}</option>
                     {{end}}
                 </select>
@@ -409,22 +409,22 @@ const encodeHTML = `
                 channel mode
                 <select name="mp3-channel-mode" class="option">
                     <option hidden disabled selected value>select</option>
-                    {{range $key, $value := .Mp3.ChannelModes}}
+                    {{range $key, $value := .MP3.ChannelModes}}
                         <option value="{{ printf "%d" $key }}">{{ $key }}</option>
                     {{end}}
                 </select>
                 bit rate mode
                 <select id="mp3-bit-rate-mode" class="option" name="mp3-bit-rate-mode">
                     <option hidden disabled selected value>select</option>
-                    <option id="{{ .Mp3.VBR  }}" value="{{ .Mp3.VBR }}">{{ .Mp3.VBR }}</option>
-                    <option id="{{ .Mp3.CBR  }}" value="{{ .Mp3.CBR }}">{{ .Mp3.CBR }}</option>
-                    <option id="{{ .Mp3.ABR  }}" value="{{ .Mp3.ABR }}">{{ .Mp3.ABR }}</option>
+                    <option id="{{ .MP3.VBR  }}" value="{{ .MP3.VBR }}">{{ .MP3.VBR }}</option>
+                    <option id="{{ .MP3.CBR  }}" value="{{ .MP3.CBR }}">{{ .MP3.CBR }}</option>
+                    <option id="{{ .MP3.ABR  }}" value="{{ .MP3.ABR }}">{{ .MP3.ABR }}</option>
                 </select>
-                <div class="mp3-bit-rate-mode-options mp3-{{ .Mp3.ABR }}-options mp3-{{ .Mp3.CBR }}-options">
+                <div class="mp3-bit-rate-mode-options mp3-{{ .MP3.ABR }}-options mp3-{{ .MP3.CBR }}-options">
                     bit rate [8-320]
                     <input type="text" class="option" name="mp3-bit-rate" maxlength="3" size="3">
                 </div>
-                <div class="mp3-bit-rate-mode-options mp3-{{ .Mp3.VBR }}-options">
+                <div class="mp3-bit-rate-mode-options mp3-{{ .MP3.VBR }}-options">
                     vbr quality [0-9]
                     <input type="text" class="option" name="mp3-vbr-quality" maxlength="1" size="3">
                 </div>

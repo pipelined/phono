@@ -23,8 +23,8 @@ var (
 		Short:                 "Encode audio files to wav format",
 		Args:                  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			// parse input
-			buildFn, err := file.Wav.BuildSink(encodeWav.bitDepth)
+			// parse user input
+			sink, err := file.WAVSink(encodeWav.bitDepth)
 			if err != nil {
 				log.Print(err)
 				os.Exit(1)
@@ -40,8 +40,8 @@ var (
 				encodeWav.recursive,
 				encodeWav.outPath,
 				encodeWav.bufferSize,
-				buildFn,
-				file.Wav.DefaultExtension,
+				sink,
+				file.WAV.DefaultExtension(),
 			)
 			// block until interruption doesn't return
 			<-interrupt

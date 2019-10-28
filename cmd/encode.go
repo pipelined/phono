@@ -28,7 +28,7 @@ func init() {
 	rootCmd.AddCommand(encodeCmd)
 }
 
-func encode(ctx context.Context, paths []string, recursive bool, outDir string, bufferSize int, buildSink file.BuildSinkFunc, ext string) {
+func encode(ctx context.Context, paths []string, recursive bool, outDir string, bufferSize int, sink file.Sink, ext string) {
 	if outDir != "" {
 		if _, err := os.Stat(outDir); os.IsNotExist(err) {
 			log.Printf("Out path doesn't exist: %v", err)
@@ -61,8 +61,8 @@ func encode(ctx context.Context, paths []string, recursive bool, outDir string, 
 			return filepath.SkipDir
 		}
 
-		// try to build pump
-		buildPump, err := file.Pump(path)
+		// try to parse format
+		format, err := file.ParseFormat(path)
 		if err != nil {
 			// file is not supported, skip
 			return nil
@@ -91,7 +91,7 @@ func encode(ctx context.Context, paths []string, recursive bool, outDir string, 
 		// error will be handled in the end of the flow
 		defer out.Close()
 
-		if err = pipes.Encode(ctx, bufferSize, buildPump(in), buildSink(out)); err != nil {
+		if err = pipes.Encode(ctx, bufferSize, format.Pump(in), sink(out)); err != nil {
 			return fmt.Errorf("Failed to execute pipe: %v", err)
 		}
 		return out.Close()

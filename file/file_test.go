@@ -54,7 +54,7 @@ func TestBuildWav(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		buildFn, err := file.Wav.BuildSink(test.bitDepth)
+		buildFn, err := file.WAV.BuildSink(test.bitDepth)
 		if test.negative {
 			assert.NotNil(t, err)
 			assert.Nil(t, buildFn)
@@ -77,7 +77,7 @@ func TestBuildMp3(t *testing.T) {
 		negative    bool
 	}{
 		{
-			bitRateMode: file.Mp3.VBR,
+			bitRateMode: file.MP3.VBR,
 			bitRate:     1,
 			channelMode: 1,
 			useQuality:  true,
@@ -89,12 +89,12 @@ func TestBuildMp3(t *testing.T) {
 			useQuality:  true,
 		},
 		{
-			bitRateMode: file.Mp3.CBR,
+			bitRateMode: file.MP3.CBR,
 			bitRate:     320,
 			channelMode: 2,
 		},
 		{
-			bitRateMode: file.Mp3.ABR,
+			bitRateMode: file.MP3.ABR,
 			bitRate:     192,
 			channelMode: 1,
 			useQuality:  true,
@@ -104,34 +104,34 @@ func TestBuildMp3(t *testing.T) {
 			negative:    true,
 		},
 		{
-			bitRateMode: file.Mp3.VBR,
+			bitRateMode: file.MP3.VBR,
 			bitRate:     10,
 			negative:    true,
 		},
 		{
-			bitRateMode: file.Mp3.CBR,
+			bitRateMode: file.MP3.CBR,
 			bitRate:     1,
 			negative:    true,
 		},
 		{
-			bitRateMode: file.Mp3.ABR,
+			bitRateMode: file.MP3.ABR,
 			bitRate:     1,
 			negative:    true,
 		},
 		{
-			bitRateMode: file.Mp3.VBR,
-			bitRate:     1,
-			channelMode: 100,
-			negative:    true,
-		},
-		{
-			bitRateMode: file.Mp3.VBR,
+			bitRateMode: file.MP3.VBR,
 			bitRate:     1,
 			channelMode: 100,
 			negative:    true,
 		},
 		{
-			bitRateMode: file.Mp3.VBR,
+			bitRateMode: file.MP3.VBR,
+			bitRate:     1,
+			channelMode: 100,
+			negative:    true,
+		},
+		{
+			bitRateMode: file.MP3.VBR,
 			bitRate:     1,
 			channelMode: 1,
 			useQuality:  true,
@@ -140,7 +140,7 @@ func TestBuildMp3(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		buildFn, err := file.Mp3.BuildSink(
+		buildFn, err := file.MP3.BuildSink(
 			test.bitRateMode,
 			test.bitRate,
 			test.channelMode,

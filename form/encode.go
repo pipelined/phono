@@ -421,17 +421,17 @@ const encodeHTML = `
                     <option id="{{ .MP3.ABR  }}" value="{{ .MP3.ABR }}">{{ .MP3.ABR }}</option>
                 </select>
                 <div class="mp3-bit-rate-mode-options mp3-{{ .MP3.ABR }}-options mp3-{{ .MP3.CBR }}-options">
-                    bit rate [8-320]
+                    bit rate [{{ .MP3.MinBitRate }}-{{ .MP3.MaxBitRate }}]
                     <input type="text" class="option" name="mp3-bit-rate" maxlength="3" size="3">
                 </div>
                 <div class="mp3-bit-rate-mode-options mp3-{{ .MP3.VBR }}-options">
-                    vbr quality [0-9]
+                    vbr quality [{{ .MP3.MinVBR }}-{{ .MP3.MaxVBR }}]
                     <input type="text" class="option" name="mp3-vbr-quality" maxlength="1" size="3">
                 </div>
                 <div class="mp3-quality">
                     <input type="checkbox" id="mp3-use-quality" name="mp3-use-quality" value="true">quality
                     <div id="mp3-quality-value" class="mp3-quality" style="visibility:hidden">
-                        [0-9]
+                        [{{ .MP3.MinQuality }}-{{ .MP3.MaxQuality }}]
                         <input type="text" class="option" name="mp3-quality" maxlength="1" size="3">
                     </div>
                 </div>
@@ -443,7 +443,7 @@ const encodeHTML = `
         </div>
         <div class="footer">
             <div class="container">
-            made with <a href="https://github.com/pipelined/pipe" target="_blank">pipe</a>
+            powered by <a href="https://github.com/pipelined/pipe" target="_blank">pipe</a>
             </div>
         </div>
     </div>

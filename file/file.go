@@ -28,12 +28,16 @@ type (
 
 	mp3Format struct {
 		extensions
-		maxBitRate   int
-		minBitRate   int
 		ChannelModes map[mp3.ChannelMode]struct{}
 		VBR          string
 		CBR          string
 		ABR          string
+		MaxBitRate   int
+		MinBitRate   int
+		MinQuality   int
+		MaxQuality   int
+		MinVBR       int
+		MaxVBR       int
 	}
 
 	flacFormat struct {
@@ -76,16 +80,20 @@ var (
 				".mp3": {},
 			},
 		},
-		minBitRate: 8,
-		maxBitRate: 320,
 		ChannelModes: map[mp3.ChannelMode]struct{}{
 			mp3.JointStereo: {},
 			mp3.Stereo:      {},
 			mp3.Mono:        {},
 		},
-		VBR: "VBR",
-		ABR: "ABR",
-		CBR: "CBR",
+		VBR:        "VBR",
+		ABR:        "ABR",
+		CBR:        "CBR",
+		MinBitRate: 8,
+		MaxBitRate: 320,
+		MinQuality: 0,
+		MaxQuality: 9,
+		MinVBR:     0,
+		MaxVBR:     9,
 	}
 
 	// FLAC provides structures required to handle flac files.
@@ -152,7 +160,7 @@ func MP3Sink(bitRateMode string, bitRate, channelMode int, useQuality bool, qual
 	var brm mp3.BitRateMode
 	switch strings.ToUpper(bitRateMode) {
 	case MP3.VBR:
-		if bitRate < 0 || bitRate > 9 {
+		if bitRate < MP3.MinVBR || bitRate > MP3.MaxVBR {
 			return nil, fmt.Errorf("VBR quality %v is not supported", bitRate)
 		}
 		brm = mp3.VBR(bitRate)
@@ -171,7 +179,7 @@ func MP3Sink(bitRateMode string, bitRate, channelMode int, useQuality bool, qual
 	}
 
 	if useQuality {
-		if quality < 0 || quality > 9 {
+		if quality < MP3.MinQuality || quality > MP3.MaxQuality {
 			return nil, fmt.Errorf("MP3 quality %v is not supported", quality)
 		}
 	}
@@ -195,8 +203,8 @@ func (mp3Format) Pump(rs io.ReadSeeker) pipe.Pump {
 
 // BitRate checks if provided bit rate is supported.
 func (f mp3Format) bitRate(v int) error {
-	if v > f.maxBitRate || v < f.minBitRate {
-		return fmt.Errorf("Bit rate %v is not supported. Provide value between %d and %d", v, f.minBitRate, f.maxBitRate)
+	if v > f.MaxBitRate || v < f.MinBitRate {
+		return fmt.Errorf("Bit rate %v is not supported. Provide value between %d and %d", v, f.MinBitRate, f.MaxBitRate)
 	}
 	return nil
 }

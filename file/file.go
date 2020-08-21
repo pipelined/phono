@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pipelined/flac"
-	"github.com/pipelined/mp3"
-	"github.com/pipelined/pipe"
-	"github.com/pipelined/signal"
-	"github.com/pipelined/wav"
+	"pipelined.dev/audio/flac"
+	"pipelined.dev/audio/mp3"
+	"pipelined.dev/audio/wav"
+	"pipelined.dev/pipe"
+	"pipelined.dev/signal"
 )
 
 type (

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/pipelined/pipe"
+	"pipelined.dev/pipe"
 )
 
 // Encode using Pump as the source and Sinks as destination.

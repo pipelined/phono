@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"pipelined.dev/audio/flac"
+	"pipelined.dev/audio/fileformat"
 	"pipelined.dev/audio/mp3"
 	"pipelined.dev/audio/wav"
 	"pipelined.dev/pipe"
@@ -16,7 +16,7 @@ import (
 type (
 	// Format represents audio file format.
 	Format interface {
-		Pump(io.ReadSeeker) pipe.Pump
+		Pump(io.ReadSeeker) pipe.SourceAllocatorFunc
 		DefaultExtension() string
 		Extensions() map[string]struct{}
 	}
@@ -51,7 +51,7 @@ type (
 	}
 
 	// Sink is used to inject WriteSeeker into Sink.
-	Sink func(io.WriteSeeker) pipe.Sink
+	Sink func(io.WriteSeeker) pipe.SinkAllocatorFunc
 )
 
 var (
@@ -137,16 +137,13 @@ func WAVSink(bitDepth int) (Sink, error) {
 		return nil, fmt.Errorf("Bit depth %v is not supported", bitDepth)
 	}
 
-	return func(ws io.WriteSeeker) pipe.Sink {
-		return &wav.Sink{
-			BitDepth:    bd,
-			WriteSeeker: ws,
-		}
+	return func(ws io.WriteSeeker) pipe.SinkAllocatorFunc {
+		return wav.Sink(ws, bd)
 	}, nil
 }
 
-func (wavFormat) Pump(rs io.ReadSeeker) pipe.Pump {
-	return &wav.Pump{ReadSeeker: rs}
+func (wavFormat) Pump(rs io.ReadSeeker) pipe.SourceAllocatorFunc {
+	return fileformat.WAV.Source(rs)
 }
 
 // MP3Sink validates all parameters required to build mp3 sink. If valid, Sink closure is returned.
@@ -184,21 +181,17 @@ func MP3Sink(bitRateMode string, bitRate, channelMode int, useQuality bool, qual
 		}
 	}
 
-	return func(ws io.WriteSeeker) pipe.Sink {
-		s := &mp3.Sink{
-			BitRateMode: brm,
-			ChannelMode: cm,
-			Writer:      ws,
-		}
+	return func(ws io.WriteSeeker) pipe.SinkAllocatorFunc {
+		eq := mp3.DefaultEncodingQuality
 		if useQuality {
-			s.SetQuality(quality)
+			eq = mp3.EncodingQuality(quality)
 		}
-		return s
+		return mp3.Sink(ws, brm, cm, eq)
 	}, nil
 }
 
-func (mp3Format) Pump(rs io.ReadSeeker) pipe.Pump {
-	return &mp3.Pump{Reader: rs}
+func (mp3Format) Pump(rs io.ReadSeeker) pipe.SourceAllocatorFunc {
+	return fileformat.MP3.Source(rs)
 }
 
 // BitRate checks if provided bit rate is supported.
@@ -209,8 +202,8 @@ func (f mp3Format) bitRate(v int) error {
 	return nil
 }
 
-func (flacFormat) Pump(rs io.ReadSeeker) pipe.Pump {
-	return &flac.Pump{Reader: rs}
+func (flacFormat) Pump(rs io.ReadSeeker) pipe.SourceAllocatorFunc {
+	return wav.Source(rs)
 }
 
 func (e extensions) DefaultExtension() string {

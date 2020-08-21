@@ -8,22 +8,20 @@ import (
 )
 
 // Encode using Pump as the source and Sinks as destination.
-func Encode(ctx context.Context, bufferSize int, pump pipe.Pump, sinks ...pipe.Sink) error {
+func Encode(ctx context.Context, bufferSize int, pump pipe.SourceAllocatorFunc, sink pipe.SinkAllocatorFunc) error {
 	// build encode pipe
-	l, err := pipe.New(
-		&pipe.Line{
-			Pump:  pump,
-			Sinks: sinks,
-		},
-	)
+	l, err := pipe.Routing{
+		Source: pump,
+		Sink:   sink,
+	}.Line(bufferSize)
 	if err != nil {
-		return fmt.Errorf("Failed to build pipe: %v", err)
+		return fmt.Errorf("failed to build pipe: %w", err)
 	}
 
 	// run conversion
-	err = pipe.Wait(l.Run(ctx, bufferSize))
+	err = pipe.New(ctx, pipe.WithLines(l)).Wait()
 	if err != nil {
-		return fmt.Errorf("Failed to execute pipe: %v", err)
+		return fmt.Errorf("failed to execute pipe: %w", err)
 	}
-	return pipe.Wait(l.Close())
+	return nil
 }

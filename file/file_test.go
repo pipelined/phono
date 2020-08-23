@@ -8,38 +8,6 @@ import (
 	"github.com/pipelined/phono/file"
 )
 
-func TestFilePump(t *testing.T) {
-	var tests = []struct {
-		fileName string
-		negative bool
-	}{
-		{
-			fileName: "test.wav",
-		},
-		{
-			fileName: "test.mp3",
-		},
-		{
-			fileName: "test.flac",
-		},
-		{
-			fileName: "",
-			negative: true,
-		},
-	}
-
-	for _, test := range tests {
-		format, err := file.ParseFormat(test.fileName)
-		if test.negative {
-			assert.NotNil(t, err)
-		} else {
-			assert.NotNil(t, format)
-			pump := format.Pump(nil)
-			assert.NotNil(t, pump)
-		}
-	}
-}
-
 func TestBuildWav(t *testing.T) {
 	var tests = []struct {
 		bitDepth int

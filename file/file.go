@@ -3,10 +3,8 @@ package file
 import (
 	"fmt"
 	"io"
-	"path/filepath"
 	"strings"
 
-	"pipelined.dev/audio/fileformat"
 	"pipelined.dev/audio/mp3"
 	"pipelined.dev/audio/wav"
 	"pipelined.dev/pipe"
@@ -14,20 +12,11 @@ import (
 )
 
 type (
-	// Format represents audio file format.
-	Format interface {
-		Pump(io.ReadSeeker) pipe.SourceAllocatorFunc
-		DefaultExtension() string
-		Extensions() map[string]struct{}
-	}
-
 	wavFormat struct {
-		extensions
 		BitDepths map[signal.BitDepth]struct{}
 	}
 
 	mp3Format struct {
-		extensions
 		ChannelModes map[mp3.ChannelMode]struct{}
 		VBR          string
 		CBR          string
@@ -40,16 +29,6 @@ type (
 		MaxVBR       int
 	}
 
-	flacFormat struct {
-		extensions
-	}
-
-	// generic struct to provide format with extensions.
-	extensions struct {
-		standard string
-		all      map[string]struct{}
-	}
-
 	// Sink is used to inject WriteSeeker into Sink.
 	Sink func(io.WriteSeeker) pipe.SinkAllocatorFunc
 )
@@ -57,13 +36,6 @@ type (
 var (
 	// WAV provides structures required to handle wav files.
 	WAV = wavFormat{
-		extensions: extensions{
-			standard: ".wav",
-			all: map[string]struct{}{
-				".wav":  {},
-				".wave": {},
-			},
-		},
 		BitDepths: map[signal.BitDepth]struct{}{
 			signal.BitDepth8:  {},
 			signal.BitDepth16: {},
@@ -74,12 +46,6 @@ var (
 
 	// MP3 provides structures required to handle mp3 files.
 	MP3 = mp3Format{
-		extensions: extensions{
-			standard: ".mp3",
-			all: map[string]struct{}{
-				".mp3": {},
-			},
-		},
 		ChannelModes: map[mp3.ChannelMode]struct{}{
 			mp3.JointStereo: {},
 			mp3.Stereo:      {},
@@ -95,32 +61,7 @@ var (
 		MinVBR:     0,
 		MaxVBR:     9,
 	}
-
-	// FLAC provides structures required to handle flac files.
-	FLAC = flacFormat{
-		extensions: extensions{
-			standard: ".flac",
-			all: map[string]struct{}{
-				".flac": {},
-			},
-		},
-	}
 )
-
-// ParseFormat determines file format by file extension.
-func ParseFormat(fileName string) (Format, error) {
-	ext := strings.ToLower(filepath.Ext(fileName))
-	switch {
-	case hasExtension(ext, WAV.extensions.all):
-		return WAV, nil
-	case hasExtension(ext, MP3.extensions.all):
-		return MP3, nil
-	case hasExtension(ext, FLAC.extensions.all):
-		return FLAC, nil
-	default:
-		return nil, fmt.Errorf("File has unsupported extension: %v", fileName)
-	}
-}
 
 // hasExtension validates if filename has one of passed extensions.
 // Filename is lower-cased before comparison.
@@ -140,10 +81,6 @@ func WAVSink(bitDepth int) (Sink, error) {
 	return func(ws io.WriteSeeker) pipe.SinkAllocatorFunc {
 		return wav.Sink(ws, bd)
 	}, nil
-}
-
-func (wavFormat) Pump(rs io.ReadSeeker) pipe.SourceAllocatorFunc {
-	return fileformat.WAV.Source(rs)
 }
 
 // MP3Sink validates all parameters required to build mp3 sink. If valid, Sink closure is returned.
@@ -190,30 +127,10 @@ func MP3Sink(bitRateMode string, bitRate, channelMode int, useQuality bool, qual
 	}, nil
 }
 
-func (mp3Format) Pump(rs io.ReadSeeker) pipe.SourceAllocatorFunc {
-	return fileformat.MP3.Source(rs)
-}
-
 // BitRate checks if provided bit rate is supported.
 func (f mp3Format) bitRate(v int) error {
 	if v > f.MaxBitRate || v < f.MinBitRate {
 		return fmt.Errorf("Bit rate %v is not supported. Provide value between %d and %d", v, f.MinBitRate, f.MaxBitRate)
 	}
 	return nil
-}
-
-func (flacFormat) Pump(rs io.ReadSeeker) pipe.SourceAllocatorFunc {
-	return wav.Source(rs)
-}
-
-func (e extensions) DefaultExtension() string {
-	return e.standard
-}
-
-func (e extensions) Extensions() map[string]struct{} {
-	exts := make(map[string]struct{})
-	for k, v := range e.all {
-		exts[k] = v
-	}
-	return exts
 }

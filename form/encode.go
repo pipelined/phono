@@ -10,20 +10,21 @@ import (
 	"text/template"
 
 	"github.com/pipelined/phono/file"
+	"pipelined.dev/audio/fileformat"
 )
 
 var (
 	extensions = mergeExtensions(
-		file.WAV.Extensions(),
-		file.MP3.Extensions(),
-		file.FLAC.Extensions(),
+		fileformat.WAV.Extensions(),
+		fileformat.MP3.Extensions(),
+		fileformat.FLAC.Extensions(),
 	)
 
 	encodeForm = encodeData{
 		Accept: strings.Join(extensions, ", "),
 		OutFormats: outFormats(
-			file.WAV.DefaultExtension(),
-			file.MP3.DefaultExtension(),
+			fileformat.WAV.DefaultExtension(),
+			fileformat.MP3.DefaultExtension(),
 		),
 		WAV: file.WAV,
 		MP3: file.MP3,
@@ -32,12 +33,10 @@ var (
 	encodeTmpl = template.Must(template.New("encode").Parse(encodeHTML))
 )
 
-func mergeExtensions(exts ...map[string]struct{}) []string {
-	result := make([]string, 0)
-	for _, m := range exts {
-		for ext := range m {
-			result = append(result, ext)
-		}
+func mergeExtensions(exts ...[]string) []string {
+	result := make([]string, 0, len(exts))
+	for i := range exts {
+		result = append(result, exts[i]...)
 	}
 	return result
 }
@@ -93,13 +92,13 @@ func (c Encode) Data() []byte {
 
 func maxSizes(wav, mp3, flac int64) map[string]int64 {
 	m := make(map[string]int64)
-	for ext := range file.MP3.Extensions() {
+	for _, ext := range fileformat.MP3.Extensions() {
 		m[ext] = mp3
 	}
-	for ext := range file.WAV.Extensions() {
+	for _, ext := range fileformat.WAV.Extensions() {
 		m[ext] = wav
 	}
-	for ext := range file.FLAC.Extensions() {
+	for _, ext := range fileformat.FLAC.Extensions() {
 		m[ext] = flac
 	}
 	return m
@@ -109,11 +108,11 @@ func maxSizes(wav, mp3, flac int64) map[string]int64 {
 func (c Encode) InputMaxSize(url string) (int64, error) {
 	ext := strings.ToLower(path.Base(url))
 	switch ext {
-	case file.MP3.DefaultExtension():
+	case fileformat.MP3.DefaultExtension():
 		return c.Mp3MaxSize, nil
-	case file.WAV.DefaultExtension():
+	case fileformat.WAV.DefaultExtension():
 		return c.WavMaxSize, nil
-	case file.FLAC.DefaultExtension():
+	case fileformat.FLAC.DefaultExtension():
 		return c.FlacMaxSize, nil
 	default:
 		return 0, fmt.Errorf("Format %s not supported", ext)
@@ -125,9 +124,9 @@ func (c Encode) InputMaxSize(url string) (int64, error) {
 func (Encode) ParseSink(data url.Values) (fn file.Sink, ext string, err error) {
 	ext = strings.ToLower(data.Get("format"))
 	switch ext {
-	case file.WAV.DefaultExtension():
+	case fileformat.WAV.DefaultExtension():
 		fn, err = parseWAVSink(data)
-	case file.MP3.DefaultExtension():
+	case fileformat.MP3.DefaultExtension():
 		fn, err = parseMP3Sink(data)
 	default:
 		err = fmt.Errorf("Unsupported format: %v", ext)

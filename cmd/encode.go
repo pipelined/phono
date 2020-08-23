@@ -12,6 +12,7 @@ import (
 
 	"github.com/pipelined/phono/file"
 	"github.com/pipelined/phono/pipes"
+	"pipelined.dev/audio/fileformat"
 )
 
 var (
@@ -62,8 +63,8 @@ func encode(ctx context.Context, paths []string, recursive bool, outDir string, 
 		}
 
 		// try to parse format
-		format, err := file.ParseFormat(path)
-		if err != nil {
+		format, ok := fileformat.FormatByPath(path)
+		if !ok {
 			// file is not supported, skip
 			return nil
 		}
@@ -91,7 +92,7 @@ func encode(ctx context.Context, paths []string, recursive bool, outDir string, 
 		// error will be handled in the end of the flow
 		defer out.Close()
 
-		if err = pipes.Encode(ctx, bufferSize, format.Pump(in), sink(out)); err != nil {
+		if err = pipes.Encode(ctx, bufferSize, format.Source(in), sink(out)); err != nil {
 			return fmt.Errorf("Failed to execute pipe: %v", err)
 		}
 		return out.Close()

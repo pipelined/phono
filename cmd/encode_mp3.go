@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"pipelined.dev/audio/fileformat"
 
 	"github.com/pipelined/phono/file"
 )
@@ -47,7 +48,7 @@ var (
 				encodeMp3.outPath,
 				encodeMp3.bufferSize,
 				sink,
-				file.MP3.DefaultExtension(),
+				fileformat.MP3.DefaultExtension(),
 			)
 		},
 	}

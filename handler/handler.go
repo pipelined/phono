@@ -14,6 +14,7 @@ import (
 
 	"github.com/pipelined/phono/file"
 	"github.com/pipelined/phono/pipes"
+	"pipelined.dev/audio/fileformat"
 )
 
 type (
@@ -68,8 +69,8 @@ func Encode(form EncodeForm, bufferSize int, tempDir string) http.Handler {
 			defer f.Close()
 
 			// parse input format
-			format, err := file.ParseFormat(handler.Filename)
-			if err != nil {
+			format, ok := fileformat.FormatByPath(handler.Filename)
+			if !ok {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
@@ -90,7 +91,7 @@ func Encode(form EncodeForm, bufferSize int, tempDir string) http.Handler {
 			defer cleanUp(tempFile)
 
 			// encode file using temp file
-			if err = pipes.Encode(r.Context(), bufferSize, format.Pump(f), sink(tempFile)); err != nil {
+			if err = pipes.Encode(r.Context(), bufferSize, format.Source(f), sink(tempFile)); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}

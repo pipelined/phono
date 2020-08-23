@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"pipelined.dev/audio/fileformat"
 
 	"github.com/pipelined/phono/file"
 )
@@ -41,7 +42,7 @@ var (
 				encodeWav.outPath,
 				encodeWav.bufferSize,
 				sink,
-				file.WAV.DefaultExtension(),
+				fileformat.WAV.DefaultExtension(),
 			)
 			// block until interruption doesn't return
 			<-interrupt

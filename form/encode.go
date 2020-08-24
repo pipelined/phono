@@ -9,7 +9,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/pipelined/phono/file"
+	"github.com/pipelined/phono/input"
 	"pipelined.dev/audio/fileformat"
 )
 
@@ -26,8 +26,8 @@ var (
 			fileformat.WAV.DefaultExtension(),
 			fileformat.MP3.DefaultExtension(),
 		),
-		WAV: file.WAV,
-		MP3: file.MP3,
+		WAV: input.WAV,
+		MP3: input.MP3,
 	}
 
 	encodeTmpl = template.Must(template.New("encode").Parse(encodeHTML))
@@ -121,7 +121,7 @@ func (c Encode) InputMaxSize(url string) (int64, error) {
 
 // ParseSink provided via form.
 // This function should return extensions, sinkbuilder
-func (Encode) ParseSink(data url.Values) (fn file.Sink, ext string, err error) {
+func (Encode) ParseSink(data url.Values) (fn input.Sink, ext string, err error) {
 	ext = strings.ToLower(data.Get("format"))
 	switch ext {
 	case fileformat.WAV.DefaultExtension():
@@ -137,16 +137,16 @@ func (Encode) ParseSink(data url.Values) (fn file.Sink, ext string, err error) {
 	return
 }
 
-func parseWAVSink(data url.Values) (file.Sink, error) {
+func parseWAVSink(data url.Values) (input.Sink, error) {
 	// try to get bit depth
 	bitDepth, err := parseIntValue(data, "wav-bit-depth", "bit depth")
 	if err != nil {
 		return nil, err
 	}
-	return file.WAVSink(bitDepth)
+	return input.WAV.Sink(bitDepth)
 }
 
-func parseMP3Sink(data url.Values) (file.Sink, error) {
+func parseMP3Sink(data url.Values) (input.Sink, error) {
 	// try to get channel mode
 	channelMode, err := parseIntValue(data, "mp3-channel-mode", "channel mode")
 	if err != nil {
@@ -161,19 +161,19 @@ func parseMP3Sink(data url.Values) (file.Sink, error) {
 
 	var bitRate int
 	switch bitRateMode {
-	case file.MP3.VBR:
+	case input.MP3.VBR:
 		// try to get vbr quality
 		bitRate, err = parseIntValue(data, "mp3-vbr-quality", "vbr quality")
 		if err != nil {
 			return nil, err
 		}
-	case file.MP3.CBR:
+	case input.MP3.CBR:
 		// try to get bitrate
 		bitRate, err = parseIntValue(data, "mp3-bit-rate", "bit rate")
 		if err != nil {
 			return nil, err
 		}
-	case file.MP3.ABR:
+	case input.MP3.ABR:
 		// try to get bitrate
 		bitRate, err = parseIntValue(data, "mp3-bit-rate", "bit rate")
 		if err != nil {
@@ -194,7 +194,7 @@ func parseMP3Sink(data url.Values) (file.Sink, error) {
 		}
 	}
 
-	return file.MP3Sink(bitRateMode, bitRate, channelMode, useQuality, quality)
+	return input.MP3.Sink(bitRateMode, bitRate, channelMode, useQuality, quality)
 }
 
 // parseIntValue parses value of key provided in the html form.
@@ -299,7 +299,7 @@ const encodeHTML = `
             return document.getElementById(fileId);
         }
         function getFileName(file) {
-            var filePath = file.value;
+            var filePath = input.value;
             return filePath.substr(filePath.lastIndexOf('\\') + 1);
         }
         function getFileExtension(fileName) {
@@ -362,7 +362,7 @@ const encodeHTML = `
             var file = getFile();
             var ext = getFileExtension(getFileName(file));
             encode.action = ext;
-            var size = file.files[0].size;
+            var size = input.files[0].size;
             switch (ext) {
             {{ range $ext, $maxSize := .MaxSizes }}
             case '{{$ext}}':

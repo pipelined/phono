@@ -10,7 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/pipelined/phono/file"
+	"github.com/pipelined/phono/input"
 	"github.com/pipelined/phono/pipes"
 	"pipelined.dev/audio/fileformat"
 )
@@ -29,7 +29,7 @@ func init() {
 	rootCmd.AddCommand(encodeCmd)
 }
 
-func encode(ctx context.Context, paths []string, recursive bool, outDir string, bufferSize int, sink file.Sink, ext string) {
+func encode(ctx context.Context, paths []string, recursive bool, outDir string, bufferSize int, sink input.Sink, ext string) {
 	if outDir != "" {
 		if _, err := os.Stat(outDir); os.IsNotExist(err) {
 			log.Printf("Out path doesn't exist: %v", err)

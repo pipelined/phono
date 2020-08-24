@@ -5,10 +5,9 @@ import (
 	"log"
 	"os"
 
+	"github.com/pipelined/phono/input"
 	"github.com/spf13/cobra"
 	"pipelined.dev/audio/fileformat"
-
-	"github.com/pipelined/phono/file"
 )
 
 var (
@@ -25,7 +24,7 @@ var (
 		Args:                  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			// parse user input
-			sink, err := file.WAVSink(encodeWav.bitDepth)
+			sink, err := input.WAV.Sink(encodeWav.bitDepth)
 			if err != nil {
 				log.Print(err)
 				os.Exit(1)

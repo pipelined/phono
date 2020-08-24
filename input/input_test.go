@@ -1,11 +1,10 @@
-package file_test
+package input_test
 
 import (
 	"testing"
 
+	"github.com/pipelined/phono/input"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/pipelined/phono/file"
 )
 
 func TestBuildWav(t *testing.T) {
@@ -22,7 +21,7 @@ func TestBuildWav(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		sinkFn, err := file.WAVSink(test.bitDepth)
+		sinkFn, err := input.WAV.Sink(test.bitDepth)
 		if test.negative {
 			assert.NotNil(t, err)
 			assert.Nil(t, sinkFn)
@@ -45,7 +44,7 @@ func TestBuildMp3(t *testing.T) {
 		negative    bool
 	}{
 		{
-			bitRateMode: file.MP3.VBR,
+			bitRateMode: input.MP3.VBR,
 			bitRate:     1,
 			channelMode: 1,
 			useQuality:  true,
@@ -57,12 +56,12 @@ func TestBuildMp3(t *testing.T) {
 			useQuality:  true,
 		},
 		{
-			bitRateMode: file.MP3.CBR,
+			bitRateMode: input.MP3.CBR,
 			bitRate:     320,
 			channelMode: 2,
 		},
 		{
-			bitRateMode: file.MP3.ABR,
+			bitRateMode: input.MP3.ABR,
 			bitRate:     192,
 			channelMode: 1,
 			useQuality:  true,
@@ -72,34 +71,34 @@ func TestBuildMp3(t *testing.T) {
 			negative:    true,
 		},
 		{
-			bitRateMode: file.MP3.VBR,
+			bitRateMode: input.MP3.VBR,
 			bitRate:     10,
 			negative:    true,
 		},
 		{
-			bitRateMode: file.MP3.CBR,
+			bitRateMode: input.MP3.CBR,
 			bitRate:     1,
 			negative:    true,
 		},
 		{
-			bitRateMode: file.MP3.ABR,
+			bitRateMode: input.MP3.ABR,
 			bitRate:     1,
 			negative:    true,
 		},
 		{
-			bitRateMode: file.MP3.VBR,
-			bitRate:     1,
-			channelMode: 100,
-			negative:    true,
-		},
-		{
-			bitRateMode: file.MP3.VBR,
+			bitRateMode: input.MP3.VBR,
 			bitRate:     1,
 			channelMode: 100,
 			negative:    true,
 		},
 		{
-			bitRateMode: file.MP3.VBR,
+			bitRateMode: input.MP3.VBR,
+			bitRate:     1,
+			channelMode: 100,
+			negative:    true,
+		},
+		{
+			bitRateMode: input.MP3.VBR,
 			bitRate:     1,
 			channelMode: 1,
 			useQuality:  true,
@@ -108,7 +107,7 @@ func TestBuildMp3(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		sinkFn, err := file.MP3Sink(
+		sinkFn, err := input.MP3.Sink(
 			test.bitRateMode,
 			test.bitRate,
 			test.channelMode,

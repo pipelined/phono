@@ -1,4 +1,4 @@
-package file
+package input
 
 import (
 	"fmt"
@@ -12,11 +12,11 @@ import (
 )
 
 type (
-	wavFormat struct {
+	wavSink struct {
 		BitDepths map[signal.BitDepth]struct{}
 	}
 
-	mp3Format struct {
+	mp3Sink struct {
 		ChannelModes map[mp3.ChannelMode]struct{}
 		VBR          string
 		CBR          string
@@ -35,7 +35,7 @@ type (
 
 var (
 	// WAV provides structures required to handle wav files.
-	WAV = wavFormat{
+	WAV = wavSink{
 		BitDepths: map[signal.BitDepth]struct{}{
 			signal.BitDepth8:  {},
 			signal.BitDepth16: {},
@@ -45,7 +45,7 @@ var (
 	}
 
 	// MP3 provides structures required to handle mp3 files.
-	MP3 = mp3Format{
+	MP3 = mp3Sink{
 		ChannelModes: map[mp3.ChannelMode]struct{}{
 			mp3.JointStereo: {},
 			mp3.Stereo:      {},
@@ -72,9 +72,9 @@ func hasExtension(ext string, exts map[string]struct{}) bool {
 
 // WAVSink validates all parameters required to build wav sink. If valid, build closure is returned.
 // Closure allows to postpone io opertaions and do them only after all sink parameters are validated.
-func WAVSink(bitDepth int) (Sink, error) {
+func (f wavSink) Sink(bitDepth int) (Sink, error) {
 	bd := signal.BitDepth(bitDepth)
-	if _, ok := WAV.BitDepths[bd]; !ok {
+	if _, ok := f.BitDepths[bd]; !ok {
 		return nil, fmt.Errorf("Bit depth %v is not supported", bitDepth)
 	}
 
@@ -83,28 +83,28 @@ func WAVSink(bitDepth int) (Sink, error) {
 	}, nil
 }
 
-// MP3Sink validates all parameters required to build mp3 sink. If valid, Sink closure is returned.
+// Sink validates all parameters required to build mp3 sink. If valid, Sink closure is returned.
 // Closure allows to postpone io opertaions and do them only after all sink parameters are validated.
-func MP3Sink(bitRateMode string, bitRate, channelMode int, useQuality bool, quality int) (Sink, error) {
+func (f mp3Sink) Sink(bitRateMode string, bitRate, channelMode int, useQuality bool, quality int) (Sink, error) {
 	cm := mp3.ChannelMode(channelMode)
-	if _, ok := MP3.ChannelModes[cm]; !ok {
+	if _, ok := f.ChannelModes[cm]; !ok {
 		return nil, fmt.Errorf("Channel mode %v is not supported", cm)
 	}
 
 	var brm mp3.BitRateMode
 	switch strings.ToUpper(bitRateMode) {
-	case MP3.VBR:
-		if bitRate < MP3.MinVBR || bitRate > MP3.MaxVBR {
+	case f.VBR:
+		if bitRate < f.MinVBR || bitRate > f.MaxVBR {
 			return nil, fmt.Errorf("VBR quality %v is not supported", bitRate)
 		}
 		brm = mp3.VBR(bitRate)
-	case MP3.CBR:
-		if err := MP3.bitRate(bitRate); err != nil {
+	case f.CBR:
+		if err := f.bitRate(bitRate); err != nil {
 			return nil, err
 		}
 		brm = mp3.CBR(bitRate)
-	case MP3.ABR:
-		if err := MP3.bitRate(bitRate); err != nil {
+	case f.ABR:
+		if err := f.bitRate(bitRate); err != nil {
 			return nil, err
 		}
 		brm = mp3.ABR(bitRate)
@@ -113,7 +113,7 @@ func MP3Sink(bitRateMode string, bitRate, channelMode int, useQuality bool, qual
 	}
 
 	if useQuality {
-		if quality < MP3.MinQuality || quality > MP3.MaxQuality {
+		if quality < f.MinQuality || quality > f.MaxQuality {
 			return nil, fmt.Errorf("MP3 quality %v is not supported", quality)
 		}
 	}
@@ -128,7 +128,7 @@ func MP3Sink(bitRateMode string, bitRate, channelMode int, useQuality bool, qual
 }
 
 // BitRate checks if provided bit rate is supported.
-func (f mp3Format) bitRate(v int) error {
+func (f mp3Sink) bitRate(v int) error {
 	if v > f.MaxBitRate || v < f.MinBitRate {
 		return fmt.Errorf("Bit rate %v is not supported. Provide value between %d and %d", v, f.MinBitRate, f.MaxBitRate)
 	}

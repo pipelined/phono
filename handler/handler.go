@@ -12,7 +12,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/pipelined/phono/file"
+	"github.com/pipelined/phono/input"
 	"github.com/pipelined/phono/pipes"
 	"pipelined.dev/audio/fileformat"
 )
@@ -23,7 +23,7 @@ type (
 		Data() []byte
 		InputMaxSize(url string) (int64, error)
 		FileKey() string
-		ParseSink(data url.Values) (file.Sink, string, error)
+		ParseSink(data url.Values) (input.Sink, string, error)
 	}
 )
 

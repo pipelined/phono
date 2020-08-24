@@ -5,10 +5,9 @@ import (
 	"log"
 	"os"
 
+	"github.com/pipelined/phono/input"
 	"github.com/spf13/cobra"
 	"pipelined.dev/audio/fileformat"
-
-	"github.com/pipelined/phono/file"
 )
 
 var (
@@ -31,7 +30,7 @@ var (
 			if cmd.Flags().Changed("quality") {
 				useQuality = true
 			}
-			sink, err := file.MP3Sink(
+			sink, err := input.MP3.Sink(
 				encodeMp3.bitRateMode,
 				encodeMp3.bitRate,
 				encodeMp3.channelMode,

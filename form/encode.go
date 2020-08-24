@@ -13,43 +13,6 @@ import (
 	"pipelined.dev/audio/fileformat"
 )
 
-var (
-	extensions = mergeExtensions(
-		fileformat.WAV.Extensions(),
-		fileformat.MP3.Extensions(),
-		fileformat.FLAC.Extensions(),
-	)
-
-	encodeForm = encodeData{
-		Accept: strings.Join(extensions, ", "),
-		OutFormats: outFormats(
-			fileformat.WAV.DefaultExtension(),
-			fileformat.MP3.DefaultExtension(),
-		),
-		WAV: input.WAV,
-		MP3: input.MP3,
-	}
-
-	encodeTmpl = template.Must(template.New("encode").Parse(encodeHTML))
-)
-
-func mergeExtensions(exts ...[]string) []string {
-	result := make([]string, 0, len(exts))
-	for i := range exts {
-		result = append(result, exts[i]...)
-	}
-	return result
-}
-
-// outFormats maps the extensions with values without dots.
-func outFormats(exts ...string) map[string]string {
-	m := make(map[string]string)
-	for _, ext := range exts {
-		m[ext] = ext[1:]
-	}
-	return m
-}
-
 // Encode provides user interaction via http form.
 type (
 	Encode struct {
@@ -58,15 +21,54 @@ type (
 		FlacMaxSize int64
 	}
 
-	// encodeData provides a data for encode form, so user can define conversion parameters.
+	// encodeData provides a data for encode form, so user can define
+	// conversion parameters.
 	encodeData struct {
 		Accept     string
-		OutFormats map[string]string
+		OutFormats []string
 		WAV        interface{}
 		MP3        interface{}
 		MaxSizes   map[string]int64
 	}
 )
+
+var (
+	// this variable is used as a template for any encode form.
+	encodeFormData = encodeData{
+		Accept: strings.Join(
+			inputExtensions(
+				fileformat.WAV,
+				fileformat.MP3,
+				fileformat.FLAC,
+			),
+			", "),
+		OutFormats: outputExtensions(
+			fileformat.WAV,
+			fileformat.MP3,
+		),
+		WAV: input.WAV,
+		MP3: input.MP3,
+	}
+
+	encodeTmpl = template.Must(template.New("encode").Parse(encodeHTML))
+)
+
+func inputExtensions(formats ...fileformat.Format) []string {
+	result := make([]string, 0, len(formats))
+	for i := range formats {
+		result = append(result, formats[i].Extensions()...)
+	}
+	return result
+}
+
+// outFormats maps the extensions with values without dots.
+func outputExtensions(formats ...fileformat.Format) []string {
+	result := make([]string, 0, len(formats))
+	for i := range formats {
+		result = append(result, formats[i].DefaultExtension())
+	}
+	return result
+}
 
 const (
 	// FileKey is the id of the file input in the HTML form.
@@ -80,7 +82,8 @@ func (Encode) FileKey() string {
 
 // Data returns serialized form data, ready to be served.
 func (c Encode) Data() []byte {
-	d := encodeForm
+	// copy generic data
+	d := encodeFormData
 	d.MaxSizes = maxSizes(c.WavMaxSize, c.Mp3MaxSize, c.FlacMaxSize)
 
 	var b bytes.Buffer
@@ -197,8 +200,8 @@ func parseMP3Sink(data url.Values) (input.Sink, error) {
 	return input.MP3.Sink(bitRateMode, bitRate, channelMode, useQuality, quality)
 }
 
-// parseIntValue parses value of key provided in the html form.
-// Returns error if value is not provided or cannot be parsed as int.
+// parseIntValue parses value of key provided in the html form. Returns
+// error if value is not provided or cannot be parsed as int.
 func parseIntValue(data url.Values, key, name string) (int, error) {
 	str := data.Get(key)
 	if str == "" {
@@ -212,8 +215,9 @@ func parseIntValue(data url.Values, key, name string) (int, error) {
 	return val, nil
 }
 
-// parseBoolValue parses value of key provided in the html form.
-// Returns false if value is not provided. Returns error when cannot be parsed as bool.
+// parseBoolValue parses value of key provided in the html form. Returns
+// false if value is not provided. Returns error when cannot be parsed as
+// bool.
 func parseBoolValue(data url.Values, key, name string) (bool, error) {
 	str := data.Get(key)
 	if str == "" {
@@ -299,7 +303,7 @@ const encodeHTML = `
             return document.getElementById(fileId);
         }
         function getFileName(file) {
-            var filePath = input.value;
+            var filePath = file.value;
             return filePath.substr(filePath.lastIndexOf('\\') + 1);
         }
         function getFileExtension(fileName) {
@@ -362,7 +366,7 @@ const encodeHTML = `
             var file = getFile();
             var ext = getFileExtension(getFileName(file));
             encode.action = ext;
-            var size = input.files[0].size;
+            var size = file.files[0].size;
             switch (ext) {
             {{ range $ext, $maxSize := .MaxSizes }}
             case '{{$ext}}':
@@ -390,8 +394,8 @@ const encodeHTML = `
                 format
                 <select id="output-format" name="format">
                     <option hidden disabled selected value>select</option>
-                    {{range $key, $value := .OutFormats}}
-                        <option id="{{ $value }}" value="{{ $key }}">{{ $value }}</option>
+                    {{range $value := .OutFormats}}
+                        <option id="{{ $value }}" value="{{ $value }}">{{ $value }}</option>
                     {{end}}
                 </select>
             </div>

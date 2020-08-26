@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/pipelined/phono/encode"
-	"github.com/pipelined/phono/encode/form"
+	"github.com/pipelined/phono/encode/internal/form"
 )
 
 func parseURL(raw string) (result *url.URL) {
@@ -68,10 +68,10 @@ func notMediaUploadRequest(uri string, params map[string]string) *http.Request {
 
 func TestHandler(t *testing.T) {
 	bufferSize := 512
-	testHandler := func(form form.Form, r *http.Request, expectedStatus int) func(t *testing.T) {
+	testHandler := func(l encode.Limits, r *http.Request, expectedStatus int) func(t *testing.T) {
 		return func(t *testing.T) {
 			t.Helper()
-			h := encode.Handler(form, bufferSize, "")
+			h := encode.Handler(l, bufferSize, "")
 			assert.NotNil(t, h)
 
 			rr := httptest.NewRecorder()
@@ -80,7 +80,7 @@ func TestHandler(t *testing.T) {
 		}
 	}
 	t.Run("not allowed method",
-		testHandler(form.Form{},
+		testHandler(encode.Limits{},
 			&http.Request{
 				Method: http.MethodPut,
 				URL:    parseURL("test/.wav"),
@@ -88,7 +88,7 @@ func TestHandler(t *testing.T) {
 			http.StatusMethodNotAllowed),
 	)
 	t.Run("not allowed input format",
-		testHandler(form.Form{},
+		testHandler(encode.Limits{},
 			&http.Request{
 				Method: http.MethodPost,
 				URL:    parseURL("test/.test"),
@@ -96,7 +96,7 @@ func TestHandler(t *testing.T) {
 			http.StatusBadRequest),
 	)
 	t.Run("not allowed output format",
-		testHandler(form.Form{},
+		testHandler(encode.Limits{},
 			fileUploadRequest(
 				"test/.mp3",
 				map[string]string{
@@ -107,7 +107,7 @@ func TestHandler(t *testing.T) {
 			http.StatusBadRequest),
 	)
 	t.Run("wav empty body",
-		testHandler(form.Form{},
+		testHandler(encode.Limits{},
 			&http.Request{
 				Method: http.MethodPost,
 				URL:    parseURL("test/.wav"),
@@ -115,12 +115,12 @@ func TestHandler(t *testing.T) {
 			http.StatusBadRequest),
 	)
 	t.Run("wav missing bit depth",
-		testHandler(form.Form{},
+		testHandler(encode.Limits{},
 			wavUploadRequest(nil),
 			http.StatusBadRequest),
 	)
 	t.Run("wav max size exceeded",
-		testHandler(form.New(form.Limits{WAV: 10}),
+		testHandler(encode.Limits{WAV: 10},
 			wavUploadRequest(map[string]string{
 				"format":        ".wav",
 				"wav-bit-depth": "16",
@@ -128,7 +128,7 @@ func TestHandler(t *testing.T) {
 			http.StatusBadRequest),
 	)
 	t.Run("wav max size exceeded",
-		testHandler(form.New(form.Limits{WAV: 10}),
+		testHandler(encode.Limits{WAV: 10},
 			wavUploadRequest(map[string]string{
 				"format":        ".wav",
 				"wav-bit-depth": "16",
@@ -136,7 +136,7 @@ func TestHandler(t *testing.T) {
 			http.StatusBadRequest),
 	)
 	t.Run("wav not media type",
-		testHandler(form.Form{},
+		testHandler(encode.Limits{},
 			notMediaUploadRequest("test/.wav", map[string]string{
 				"format":        ".wav",
 				"wav-bit-depth": "16",
@@ -144,7 +144,7 @@ func TestHandler(t *testing.T) {
 			http.StatusBadRequest),
 	)
 	t.Run("wav ok",
-		testHandler(form.Form{},
+		testHandler(encode.Limits{},
 			wavUploadRequest(map[string]string{
 				"format":        ".wav",
 				"wav-bit-depth": "16",
@@ -152,7 +152,7 @@ func TestHandler(t *testing.T) {
 			http.StatusOK),
 	)
 	t.Run("mp3 vbr ok",
-		testHandler(form.Form{},
+		testHandler(encode.Limits{},
 			mp3UploadRequest(map[string]string{
 				"format":            ".mp3",
 				"mp3-channel-mode":  "1",
@@ -164,7 +164,7 @@ func TestHandler(t *testing.T) {
 			http.StatusOK),
 	)
 	t.Run("mp3 cbr ok",
-		testHandler(form.Form{},
+		testHandler(encode.Limits{},
 			mp3UploadRequest(map[string]string{
 				"format":            ".mp3",
 				"mp3-channel-mode":  "1",
@@ -174,7 +174,7 @@ func TestHandler(t *testing.T) {
 			http.StatusOK),
 	)
 	t.Run("mp3 abr ok",
-		testHandler(form.Form{},
+		testHandler(encode.Limits{},
 			mp3UploadRequest(map[string]string{
 				"format":            ".mp3",
 				"mp3-channel-mode":  "1",
@@ -184,7 +184,7 @@ func TestHandler(t *testing.T) {
 			http.StatusOK),
 	)
 	t.Run("wav as mp3",
-		testHandler(form.Form{},
+		testHandler(encode.Limits{},
 			fileUploadRequest(
 				"test/.mp3",
 				map[string]string{
@@ -195,7 +195,7 @@ func TestHandler(t *testing.T) {
 			http.StatusBadRequest),
 	)
 	t.Run("wav invalid bit depth",
-		testHandler(form.Form{},
+		testHandler(encode.Limits{},
 			wavUploadRequest(
 				map[string]string{
 					"format":        ".wav",
@@ -205,7 +205,7 @@ func TestHandler(t *testing.T) {
 			http.StatusBadRequest),
 	)
 	t.Run("mp3 invalid channel mode",
-		testHandler(form.Form{},
+		testHandler(encode.Limits{},
 			mp3UploadRequest(map[string]string{
 				"format":           ".mp3",
 				"mp3-channel-mode": "invalid-channel-mode",
@@ -213,7 +213,7 @@ func TestHandler(t *testing.T) {
 			http.StatusBadRequest),
 	)
 	t.Run("mp3 invalid vbr quality",
-		testHandler(form.Form{},
+		testHandler(encode.Limits{},
 			mp3UploadRequest(map[string]string{
 				"format":            ".mp3",
 				"mp3-channel-mode":  "1",
@@ -223,7 +223,7 @@ func TestHandler(t *testing.T) {
 			http.StatusBadRequest),
 	)
 	t.Run("mp3 invalid quality flag",
-		testHandler(form.Form{},
+		testHandler(encode.Limits{},
 			mp3UploadRequest(map[string]string{
 				"format":            ".mp3",
 				"mp3-channel-mode":  "1",
@@ -234,7 +234,7 @@ func TestHandler(t *testing.T) {
 			http.StatusBadRequest),
 	)
 	t.Run("mp3 invalid quality flag",
-		testHandler(form.Form{},
+		testHandler(encode.Limits{},
 			mp3UploadRequest(map[string]string{
 				"format":            ".mp3",
 				"mp3-channel-mode":  "1",
@@ -246,7 +246,7 @@ func TestHandler(t *testing.T) {
 			http.StatusBadRequest),
 	)
 	t.Run("mp3 invalid VBR bit rate",
-		testHandler(form.Form{},
+		testHandler(encode.Limits{},
 			mp3UploadRequest(map[string]string{
 				"format":            ".mp3",
 				"mp3-channel-mode":  "1",
@@ -256,7 +256,7 @@ func TestHandler(t *testing.T) {
 			http.StatusBadRequest),
 	)
 	t.Run("mp3 invalid ABR bit rate",
-		testHandler(form.Form{},
+		testHandler(encode.Limits{},
 			mp3UploadRequest(map[string]string{
 				"format":            ".mp3",
 				"mp3-channel-mode":  "1",
@@ -266,7 +266,7 @@ func TestHandler(t *testing.T) {
 			http.StatusBadRequest),
 	)
 	t.Run("mp3 invalid CBR bit rate",
-		testHandler(form.Form{},
+		testHandler(encode.Limits{},
 			mp3UploadRequest(map[string]string{
 				"format":            ".mp3",
 				"mp3-channel-mode":  "1",

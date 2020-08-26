@@ -1,4 +1,4 @@
-package pipes
+package encode
 
 import (
 	"context"
@@ -7,8 +7,8 @@ import (
 	"pipelined.dev/pipe"
 )
 
-// Encode using Pump as the source and Sinks as destination.
-func Encode(ctx context.Context, bufferSize int, pump pipe.SourceAllocatorFunc, sink pipe.SinkAllocatorFunc) error {
+// Run encoding using Pump as the source and Sinks as destination.
+func Run(ctx context.Context, bufferSize int, pump pipe.SourceAllocatorFunc, sink pipe.SinkAllocatorFunc) error {
 	// build encode pipe
 	l, err := pipe.Routing{
 		Source: pump,

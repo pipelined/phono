@@ -10,8 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/pipelined/phono/encode"
 	"github.com/pipelined/phono/input"
-	"github.com/pipelined/phono/pipes"
 	"pipelined.dev/audio/fileformat"
 )
 
@@ -92,7 +92,7 @@ func encodeCLI(ctx context.Context, paths []string, recursive bool, outDir strin
 		// error will be handled in the end of the flow
 		defer out.Close()
 
-		if err = pipes.Encode(ctx, bufferSize, format.Source(in), sink(out)); err != nil {
+		if err = encode.Run(ctx, bufferSize, format.Source(in), sink(out)); err != nil {
 			return fmt.Errorf("Failed to execute pipe: %v", err)
 		}
 		return out.Close()

@@ -20,6 +20,11 @@ var (
 	errOutputFormat = errors.New("unsupported output format")
 )
 
+var formTemplate = template.Must(template.New("encode").Parse(encodeHTML))
+
+// FormFileKey is the id of the file input in the HTML form.
+const FormFileKey = "input-file"
+
 type (
 	// Limits for input files uploaded via form.
 	Limits struct {
@@ -60,11 +65,6 @@ type (
 		MaxSizes   map[string]int64
 	}
 )
-
-var formTemplate = template.Must(template.New("encode").Parse(encodeHTML))
-
-// FormFileKey is the id of the file input in the HTML form.
-const FormFileKey = "input-file"
 
 // New creates new form with provided limits.
 func New(l Limits) Form {

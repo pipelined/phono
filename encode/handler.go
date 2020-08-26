@@ -10,9 +10,10 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/pipelined/phono/encode/form"
-	"github.com/pipelined/phono/pipes"
+	"github.com/pipelined/phono/encode/internal/form"
 )
+
+type Limits form.Limits
 
 // Handler form files to the format provided by form.
 // Process request steps:
@@ -22,7 +23,8 @@ import (
 //	4. Create temp file
 //	5. Run conversion
 //	6. Send result file
-func Handler(f form.Form, bufferSize int, tempDir string) http.Handler {
+func Handler(l Limits, bufferSize int, tempDir string) http.Handler {
+	f := form.New(form.Limits(l))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -47,7 +49,7 @@ func Handler(f form.Form, bufferSize int, tempDir string) http.Handler {
 			defer cleanUp(tempFile)
 
 			// encode file using temp file
-			if err = pipes.Encode(r.Context(), bufferSize, formData.Input.Format.Source(formData.Input.File), formData.Output.Sink(tempFile)); err != nil {
+			if err = Run(r.Context(), bufferSize, formData.Input.Format.Source(formData.Input.File), formData.Output.Sink(tempFile)); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}

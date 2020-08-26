@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/pipelined/phono/encode/form"
+	"github.com/pipelined/phono/encode/internal/form"
 )
 
 func TestEncodeForm(t *testing.T) {

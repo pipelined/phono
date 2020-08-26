@@ -2,7 +2,10 @@ package form
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"mime/multipart"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -12,12 +15,39 @@ import (
 	"pipelined.dev/audio/fileformat"
 )
 
-// Form provides user interaction via http form.
+var (
+	errInputFormat  = errors.New("unsupported input format")
+	errOutputFormat = errors.New("unsupported output format")
+)
+
 type (
+	// Limits for input files uploaded via form.
+	Limits struct {
+		WAV  int64
+		MP3  int64
+		FLAC int64
+	}
+
+	// Form provides user interaction via http form.
 	Form struct {
-		WavMaxSize  int64
-		Mp3MaxSize  int64
-		FlacMaxSize int64
+		buf    bytes.Buffer
+		limits Limits
+	}
+
+	// Data contains parsed form data.
+	Data struct {
+		Input  encodeInput
+		Output encodeOutput
+	}
+
+	encodeInput struct {
+		fileformat.Format
+		multipart.File
+		Limit int64
+	}
+	encodeOutput struct {
+		fileformat.Format
+		input.Sink
 	}
 
 	// templateData provides a data for encode form template, so user can
@@ -31,14 +61,18 @@ type (
 	}
 )
 
-var encodeTmpl = template.Must(template.New("encode").Parse(encodeHTML))
+var formTemplate = template.Must(template.New("encode").Parse(encodeHTML))
 
 // FormFileKey is the id of the file input in the HTML form.
 const FormFileKey = "input-file"
 
-// Data returns serialized form data, ready to be served.
-func (f Form) Data() []byte {
-	data := templateData{
+// New creates new form with provided limits.
+func New(l Limits) Form {
+	f := Form{
+		limits: l,
+	}
+	err := formTemplate.Execute(&f.buf, templateData{
+		MaxSizes: l.maxSizes(),
 		Accept: strings.Join(
 			inputExtensions(
 				fileformat.WAV,
@@ -50,16 +84,65 @@ func (f Form) Data() []byte {
 			fileformat.WAV,
 			fileformat.MP3,
 		),
-		WAV:      input.WAV,
-		MP3:      input.MP3,
-		MaxSizes: maxSizes(f.WavMaxSize, f.Mp3MaxSize, f.FlacMaxSize),
+		WAV: input.WAV,
+		MP3: input.MP3,
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to parse encode template: %v", err))
+	}
+	return f
+}
+
+// Bytes returns serialized form, ready to be served.
+func (f Form) Bytes() []byte {
+	return f.buf.Bytes()
+}
+
+// Parse returns the data provided by the user via submitted form.
+func (f Form) Parse(r *http.Request) (Data, error) {
+	inputFormat, ok := fileformat.FormatByPath(r.URL.Path)
+	if !ok {
+		return Data{}, errInputFormat
+	}
+	// get max size for the format
+	maxSize := f.inputMaxSize(inputFormat)
+	if maxSize > 0 {
+		// check if limit is defined
+		if maxSize > 0 {
+			r.Body = http.MaxBytesReader(nil, r.Body, maxSize)
+		}
+	}
+	// check max size
+	if err := r.ParseMultipartForm(maxSize); err != nil {
+		return Data{}, err
 	}
 
-	var b bytes.Buffer
-	if err := encodeTmpl.Execute(&b, data); err != nil {
-		panic(fmt.Sprintf("Failed to parse encode template: %v", err))
+	file, _, err := r.FormFile(FormFileKey)
+	if err != nil {
+		return Data{}, err
 	}
-	return b.Bytes()
+
+	// parse sink and validate parameters
+	sink, ext, err := ParseForm(r.MultipartForm.Value)
+	if err != nil {
+		return Data{}, err
+	}
+
+	outputFormat, ok := fileformat.FormatByPath(ext)
+	if !ok {
+		return Data{}, errOutputFormat
+	}
+	return Data{
+		Input: encodeInput{
+			Format: inputFormat,
+			Limit:  maxSize,
+			File:   file,
+		},
+		Output: encodeOutput{
+			Format: outputFormat,
+			Sink:   sink,
+		},
+	}, nil
 }
 
 func inputExtensions(formats ...fileformat.Format) []string {
@@ -79,29 +162,29 @@ func outputExtensions(formats ...fileformat.Format) []string {
 	return result
 }
 
-func maxSizes(wav, mp3, flac int64) map[string]int64 {
+func (l Limits) maxSizes() map[string]int64 {
 	m := make(map[string]int64)
 	for _, ext := range fileformat.MP3.Extensions() {
-		m[ext] = mp3
+		m[ext] = l.MP3
 	}
 	for _, ext := range fileformat.WAV.Extensions() {
-		m[ext] = wav
+		m[ext] = l.WAV
 	}
 	for _, ext := range fileformat.FLAC.Extensions() {
-		m[ext] = flac
+		m[ext] = l.FLAC
 	}
 	return m
 }
 
-// InputMaxSize of file from http request.
-func (f Form) InputMaxSize(format fileformat.Format) int64 {
+// inputMaxSize of file from http request.
+func (f Form) inputMaxSize(format fileformat.Format) int64 {
 	switch format {
 	case fileformat.MP3:
-		return f.Mp3MaxSize
+		return f.limits.MP3
 	case fileformat.WAV:
-		return f.WavMaxSize
+		return f.limits.WAV
 	case fileformat.FLAC:
-		return f.FlacMaxSize
+		return f.limits.FLAC
 	}
 	return 0
 }

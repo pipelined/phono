@@ -120,7 +120,7 @@ func TestHandler(t *testing.T) {
 			http.StatusBadRequest),
 	)
 	t.Run("wav max size exceeded",
-		testHandler(form.Form{WavMaxSize: 10},
+		testHandler(form.New(form.Limits{WAV: 10}),
 			wavUploadRequest(map[string]string{
 				"format":        ".wav",
 				"wav-bit-depth": "16",
@@ -128,7 +128,7 @@ func TestHandler(t *testing.T) {
 			http.StatusBadRequest),
 	)
 	t.Run("wav max size exceeded",
-		testHandler(form.Form{WavMaxSize: 10},
+		testHandler(form.New(form.Limits{WAV: 10}),
 			wavUploadRequest(map[string]string{
 				"format":        ".wav",
 				"wav-bit-depth": "16",

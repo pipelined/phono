@@ -29,7 +29,7 @@ func init() {
 	rootCmd.AddCommand(encodeCmd)
 }
 
-func encode(ctx context.Context, paths []string, recursive bool, outDir string, bufferSize int, sink input.Sink, ext string) {
+func encodeCLI(ctx context.Context, paths []string, recursive bool, outDir string, bufferSize int, sink input.Sink, ext string) {
 	if outDir != "" {
 		if _, err := os.Stat(outDir); os.IsNotExist(err) {
 			log.Printf("Out path doesn't exist: %v", err)

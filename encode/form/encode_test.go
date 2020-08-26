@@ -5,14 +5,15 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"pipelined.dev/audio/fileformat"
 
-	"github.com/pipelined/phono/form"
+	"github.com/pipelined/phono/encode/form"
 )
 
 func TestEncodeForm(t *testing.T) {
 	wavMaxSize := int64(10)
 	mp3MaxSize := int64(15)
-	encodeForm := form.Encode{
+	encodeForm := form.Form{
 		WavMaxSize: wavMaxSize,
 		Mp3MaxSize: mp3MaxSize,
 	}
@@ -22,39 +23,37 @@ func TestEncodeForm(t *testing.T) {
 	assert.NotNil(t, d)
 
 	// test file key
-	k := encodeForm.FileKey()
+	k := form.FormFileKey
 	assert.NotEqual(t, "", k)
 
 	// test form max input size
 	var inputSizeTests = []struct {
+		format   fileformat.Format
 		url      string
 		maxSize  int64
 		negative bool
 	}{
 		{
+			format:  fileformat.WAV,
 			url:     "test/.wav",
 			maxSize: wavMaxSize,
 		},
 		{
+			format:  fileformat.MP3,
 			url:     "test/.mp3",
 			maxSize: mp3MaxSize,
 		},
 		{
+			format:   nil,
 			url:      "test/wav",
-			negative: true,
-		},
-		{
-			url:      "test/mp3",
 			negative: true,
 		},
 	}
 	for _, test := range inputSizeTests {
-		size, err := encodeForm.InputMaxSize(test.url)
+		size := encodeForm.InputMaxSize(test.format)
 		if test.negative {
-			assert.NotNil(t, err)
 			assert.Equal(t, int64(0), size)
 		} else {
-			assert.Nil(t, err)
 			assert.Equal(t, test.maxSize, size)
 		}
 	}
@@ -179,7 +178,7 @@ func TestEncodeForm(t *testing.T) {
 	}
 
 	for _, test := range parseSinkTests {
-		buildFn, ext, err := encodeForm.ParseSink(test.values)
+		buildFn, ext, err := form.ParseForm(test.values)
 		if test.negative {
 			assert.NotNil(t, err)
 			assert.Equal(t, "", ext)

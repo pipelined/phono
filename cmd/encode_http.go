@@ -10,8 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/pipelined/phono/form"
-	"github.com/pipelined/phono/handler"
+	"github.com/pipelined/phono/encode"
+	"github.com/pipelined/phono/encode/form"
 )
 
 var (
@@ -52,7 +52,7 @@ func serve(port int, tempDir string, bufferSize int) {
 	})
 
 	// setting router rule
-	http.Handle("/", handler.Encode(form.Encode{}, bufferSize, dir))
+	http.Handle("/", encode.Handler(form.Form{}, bufferSize, dir))
 	log.Printf("phono encode at: http://localhost%s\n", server.Addr)
 	if err := server.ListenAndServe(); err != http.ErrServerClosed {
 		log.Printf("HTTP server ListenAndServe error: %v", err)

@@ -1,33 +1,27 @@
-// Package handler provides handlers to process user input and manipulate with pipes.
-package handler
+package encode
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"mime"
 	"net/http"
-	"net/url"
 	"os"
 	"strconv"
 
-	"github.com/pipelined/phono/input"
+	"github.com/pipelined/phono/encode/form"
 	"github.com/pipelined/phono/pipes"
 	"pipelined.dev/audio/fileformat"
 )
 
-type (
-	// EncodeForm provides html form to the user. The form contains all information needed for conversion.
-	EncodeForm interface {
-		Data() []byte
-		InputMaxSize(url string) (int64, error)
-		FileKey() string
-		ParseSink(data url.Values) (input.Sink, string, error)
-	}
+var (
+	errInputFormat  = errors.New("unsupported input format")
+	errOutputFormat = errors.New("unsupported output format")
 )
 
-// Encode form files to the format provided by form.
+// Handler form files to the format provided by form.
 // Process request steps:
 //	1. Retrieve input format from URL
 //	2. Use http.MaxBytesReader to avoid memory abuse
@@ -35,8 +29,8 @@ type (
 //	4. Create temp file
 //	5. Run conversion
 //	6. Send result file
-func Encode(form EncodeForm, bufferSize int, tempDir string) http.Handler {
-	formData := form.Data()
+func Handler(f form.Form, bufferSize int, tempDir string) http.Handler {
+	formData := f.Data()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -45,41 +39,42 @@ func Encode(form EncodeForm, bufferSize int, tempDir string) http.Handler {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 		case http.MethodPost:
+			inputFormat, ok := fileformat.FormatByPath(r.URL.Path)
+			if !ok {
+				http.Error(w, errInputFormat.Error(), http.StatusBadRequest)
+				return
+			}
 			// get max size for the format
-			if maxSize, err := form.InputMaxSize(r.URL.Path); err == nil {
+			maxSize := f.InputMaxSize(inputFormat)
+			if maxSize > 0 {
 				// check if limit is defined
 				if maxSize > 0 {
 					r.Body = http.MaxBytesReader(w, r.Body, maxSize)
 				}
-				// check max size
-				if err := r.ParseMultipartForm(maxSize); err != nil {
-					http.Error(w, err.Error(), http.StatusBadRequest)
-					return
-				}
-			} else {
+			}
+			// check max size
+			if err := r.ParseMultipartForm(maxSize); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 
-			f, handler, err := r.FormFile(form.FileKey())
+			f, _, err := r.FormFile(form.FormFileKey)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 			defer f.Close()
 
-			// parse input format
-			format, ok := fileformat.FormatByPath(handler.Filename)
-			if !ok {
+			// parse sink and validate parameters
+			sink, ext, err := form.ParseForm(r.MultipartForm.Value)
+			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 
-			// parse sink and validate parameters
-			sink, ext, err := form.ParseSink(r.MultipartForm.Value)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
+			outputFormat, ok := fileformat.FormatByPath(ext)
+			if !ok {
+				http.Error(w, errOutputFormat.Error(), http.StatusBadRequest)
 			}
 
 			// create temp file
@@ -91,7 +86,7 @@ func Encode(form EncodeForm, bufferSize int, tempDir string) http.Handler {
 			defer cleanUp(tempFile)
 
 			// encode file using temp file
-			if err = pipes.Encode(r.Context(), bufferSize, format.Source(f), sink(tempFile)); err != nil {
+			if err = pipes.Encode(r.Context(), bufferSize, inputFormat.Source(f), sink(tempFile)); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
@@ -109,8 +104,8 @@ func Encode(form EncodeForm, bufferSize int, tempDir string) http.Handler {
 			}
 			fileSize := strconv.FormatInt(stat.Size(), 10)
 			//Send the headers
-			w.Header().Set("Content-Disposition", "attachment; filename="+outFileName("result", 1, ext))
-			w.Header().Set("Content-Type", mime.TypeByExtension(ext))
+			w.Header().Set("Content-Disposition", "attachment; filename="+outFileName("result", 1, outputFormat.DefaultExtension()))
+			w.Header().Set("Content-Type", mime.TypeByExtension(outputFormat.DefaultExtension()))
 			w.Header().Set("Content-Length", fileSize)
 			_, err = io.Copy(w, tempFile) // send file to a client
 			if err != nil {

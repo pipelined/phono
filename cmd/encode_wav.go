@@ -35,7 +35,7 @@ var (
 				// interrupt signal received, shut down
 				cancelFn()
 			})
-			encode(ctx,
+			encodeCLI(ctx,
 				args,
 				encodeWav.recursive,
 				encodeWav.outPath,

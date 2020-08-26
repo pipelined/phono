@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"net/url"
-	"path"
 	"strconv"
 	"strings"
 	"text/template"
@@ -13,17 +12,17 @@ import (
 	"pipelined.dev/audio/fileformat"
 )
 
-// Encode provides user interaction via http form.
+// Form provides user interaction via http form.
 type (
-	Encode struct {
+	Form struct {
 		WavMaxSize  int64
 		Mp3MaxSize  int64
 		FlacMaxSize int64
 	}
 
-	// encodeData provides a data for encode form, so user can define
-	// conversion parameters.
-	encodeData struct {
+	// templateData provides a data for encode form template, so user can
+	// define conversion parameters.
+	templateData struct {
 		Accept     string
 		OutFormats []string
 		WAV        interface{}
@@ -32,9 +31,14 @@ type (
 	}
 )
 
-var (
-	// this variable is used as a template for any encode form.
-	encodeFormData = encodeData{
+var encodeTmpl = template.Must(template.New("encode").Parse(encodeHTML))
+
+// FormFileKey is the id of the file input in the HTML form.
+const FormFileKey = "input-file"
+
+// Data returns serialized form data, ready to be served.
+func (f Form) Data() []byte {
+	data := templateData{
 		Accept: strings.Join(
 			inputExtensions(
 				fileformat.WAV,
@@ -46,12 +50,17 @@ var (
 			fileformat.WAV,
 			fileformat.MP3,
 		),
-		WAV: input.WAV,
-		MP3: input.MP3,
+		WAV:      input.WAV,
+		MP3:      input.MP3,
+		MaxSizes: maxSizes(f.WavMaxSize, f.Mp3MaxSize, f.FlacMaxSize),
 	}
 
-	encodeTmpl = template.Must(template.New("encode").Parse(encodeHTML))
-)
+	var b bytes.Buffer
+	if err := encodeTmpl.Execute(&b, data); err != nil {
+		panic(fmt.Sprintf("Failed to parse encode template: %v", err))
+	}
+	return b.Bytes()
+}
 
 func inputExtensions(formats ...fileformat.Format) []string {
 	result := make([]string, 0, len(formats))
@@ -70,29 +79,6 @@ func outputExtensions(formats ...fileformat.Format) []string {
 	return result
 }
 
-const (
-	// FileKey is the id of the file input in the HTML form.
-	FileKey = "input-file"
-)
-
-// FileKey returns a name of form file value.
-func (Encode) FileKey() string {
-	return FileKey
-}
-
-// Data returns serialized form data, ready to be served.
-func (c Encode) Data() []byte {
-	// copy generic data
-	d := encodeFormData
-	d.MaxSizes = maxSizes(c.WavMaxSize, c.Mp3MaxSize, c.FlacMaxSize)
-
-	var b bytes.Buffer
-	if err := encodeTmpl.Execute(&b, d); err != nil {
-		panic(fmt.Sprintf("Failed to parse encode template: %v", err))
-	}
-	return b.Bytes()
-}
-
 func maxSizes(wav, mp3, flac int64) map[string]int64 {
 	m := make(map[string]int64)
 	for _, ext := range fileformat.MP3.Extensions() {
@@ -108,29 +94,27 @@ func maxSizes(wav, mp3, flac int64) map[string]int64 {
 }
 
 // InputMaxSize of file from http request.
-func (c Encode) InputMaxSize(url string) (int64, error) {
-	ext := strings.ToLower(path.Base(url))
-	switch ext {
-	case fileformat.MP3.DefaultExtension():
-		return c.Mp3MaxSize, nil
-	case fileformat.WAV.DefaultExtension():
-		return c.WavMaxSize, nil
-	case fileformat.FLAC.DefaultExtension():
-		return c.FlacMaxSize, nil
-	default:
-		return 0, fmt.Errorf("Format %s not supported", ext)
+func (f Form) InputMaxSize(format fileformat.Format) int64 {
+	switch format {
+	case fileformat.MP3:
+		return f.Mp3MaxSize
+	case fileformat.WAV:
+		return f.WavMaxSize
+	case fileformat.FLAC:
+		return f.FlacMaxSize
 	}
+	return 0
 }
 
-// ParseSink provided via form.
+// ParseForm provided via form.
 // This function should return extensions, sinkbuilder
-func (Encode) ParseSink(data url.Values) (fn input.Sink, ext string, err error) {
-	ext = strings.ToLower(data.Get("format"))
+func ParseForm(formData url.Values) (fn input.Sink, ext string, err error) {
+	ext = strings.ToLower(formData.Get("format"))
 	switch ext {
 	case fileformat.WAV.DefaultExtension():
-		fn, err = parseWAVSink(data)
+		fn, err = parseWAVSink(formData)
 	case fileformat.MP3.DefaultExtension():
-		fn, err = parseMP3Sink(data)
+		fn, err = parseMP3Sink(formData)
 	default:
 		err = fmt.Errorf("Unsupported format: %v", ext)
 	}

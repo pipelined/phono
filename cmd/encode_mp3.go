@@ -41,7 +41,7 @@ var (
 				log.Print(err)
 				os.Exit(1)
 			}
-			encode(context.Background(),
+			encodeCLI(context.Background(),
 				args,
 				encodeMp3.recursive,
 				encodeMp3.outPath,

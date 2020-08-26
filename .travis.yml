@@ -16,7 +16,7 @@ env:
   global:
     - CODECOV_TOKEN="fda83ffd-7216-4c61-a060-ed9cb8596f6e"
 
-script: go test -race -coverprofile=coverage.txt -covermode=atomic ./...
+script: go clean --modcache && go test -race -coverprofile=coverage.txt -covermode=atomic ./...
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)

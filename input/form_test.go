@@ -1,4 +1,4 @@
-package form_test
+package input_test
 
 import (
 	"bytes"
@@ -10,9 +10,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/pipelined/phono/input"
 	"golang.org/x/net/html"
 
-	"github.com/pipelined/phono/encode/internal/form"
 	"pipelined.dev/audio/fileformat"
 )
 
@@ -27,7 +27,7 @@ func TestFormParsing(t *testing.T) {
 			}
 			defer file.Close()
 
-			part, err := writer.CreateFormFile(form.FormFileKey, filepath.Base(filePath))
+			part, err := writer.CreateFormFile(input.FormFileKey, filepath.Base(filePath))
 			if err != nil {
 				panic(err)
 			}
@@ -51,25 +51,25 @@ func TestFormParsing(t *testing.T) {
 	}
 
 	newWavRequest := func(params map[string]string) *http.Request {
-		return newRequest("test/.wav", "../../../_testdata/sample.wav", params)
+		return newRequest("test/.wav", "../_testdata/sample.wav", params)
 	}
 
-	testOk := func(f form.Form, r *http.Request) func(*testing.T) {
+	testOk := func(f input.Form, r *http.Request) func(*testing.T) {
 		return func(t *testing.T) {
 			_, err := f.Parse(r)
 			assertEqual(t, "error", err, nil)
 		}
 	}
-	testFail := func(f form.Form, r *http.Request) func(*testing.T) {
+	testFail := func(f input.Form, r *http.Request) func(*testing.T) {
 		return func(t *testing.T) {
 			_, err := f.Parse(r)
 			assertNotNil(t, "error", err)
 		}
 	}
 
-	noLimits := form.Limits{}
+	noLimits := input.Limits{}
 	t.Run("ok wav",
-		testOk(form.New(noLimits),
+		testOk(input.New(noLimits),
 			newWavRequest(
 				map[string]string{
 					"format":        ".wav",
@@ -79,7 +79,7 @@ func TestFormParsing(t *testing.T) {
 		),
 	)
 	t.Run("ok mp3 vbr",
-		testOk(form.New(noLimits),
+		testOk(input.New(noLimits),
 			newWavRequest(
 				map[string]string{
 					"format":            ".mp3",
@@ -93,7 +93,7 @@ func TestFormParsing(t *testing.T) {
 		),
 	)
 	t.Run("ok mp3 cbr",
-		testOk(form.New(noLimits),
+		testOk(input.New(noLimits),
 			newWavRequest(map[string]string{
 				"format":            ".mp3",
 				"mp3-channel-mode":  "1",
@@ -104,7 +104,7 @@ func TestFormParsing(t *testing.T) {
 		),
 	)
 	t.Run("ok mp3 abr",
-		testOk(form.New(noLimits),
+		testOk(input.New(noLimits),
 			newWavRequest(map[string]string{
 				"format":            ".mp3",
 				"mp3-channel-mode":  "1",
@@ -114,36 +114,36 @@ func TestFormParsing(t *testing.T) {
 		),
 	)
 	t.Run("fail size exceeded",
-		testFail(form.New(form.Limits{fileformat.WAV: 10}),
+		testFail(input.New(input.Limits{fileformat.WAV: 10}),
 			newWavRequest(nil),
 		),
 	)
 	t.Run("fail input format",
-		testFail(form.New(form.Limits{fileformat.WAV: 10}),
+		testFail(input.New(input.Limits{fileformat.WAV: 10}),
 			newRequest("non-existing-format", "", nil),
 		),
 	)
 	t.Run("fail output format",
-		testFail(form.New(form.Limits{fileformat.WAV: 10}),
+		testFail(input.New(input.Limits{fileformat.WAV: 10}),
 			newWavRequest(map[string]string{
 				"format": "non-existing-format",
 			}),
 		),
 	)
 	t.Run("fail no file",
-		testFail(form.New(form.Limits{fileformat.WAV: 10}),
+		testFail(input.New(input.Limits{fileformat.WAV: 10}),
 			newRequest(".wav", "", nil),
 		),
 	)
 	t.Run("fail wav missing bit depth",
-		testFail(form.New(form.Limits{}),
+		testFail(input.New(input.Limits{}),
 			newWavRequest(map[string]string{
 				"format":        ".wav",
 				"wav-bit-depth": "",
 			})),
 	)
 	t.Run("fail mp3 invalid channel mode",
-		testFail(form.New(form.Limits{}),
+		testFail(input.New(input.Limits{}),
 			newWavRequest(map[string]string{
 				"format":           ".mp3",
 				"mp3-channel-mode": "invalid-channel-mode",
@@ -151,7 +151,7 @@ func TestFormParsing(t *testing.T) {
 		),
 	)
 	t.Run("fail mp3 invalid bit rate mode",
-		testFail(form.New(form.Limits{}),
+		testFail(input.New(input.Limits{}),
 			newWavRequest(map[string]string{
 				"format":            ".mp3",
 				"mp3-channel-mode":  "1",
@@ -160,7 +160,7 @@ func TestFormParsing(t *testing.T) {
 		),
 	)
 	t.Run("fail mp3 invalid vbr quality",
-		testFail(form.New(form.Limits{}),
+		testFail(input.New(input.Limits{}),
 			newWavRequest(map[string]string{
 				"format":            ".mp3",
 				"mp3-channel-mode":  "1",
@@ -170,7 +170,7 @@ func TestFormParsing(t *testing.T) {
 		),
 	)
 	t.Run("fail mp3 invalid bit rate",
-		testFail(form.New(form.Limits{}),
+		testFail(input.New(input.Limits{}),
 			newWavRequest(map[string]string{
 				"format":            ".mp3",
 				"mp3-channel-mode":  "1",
@@ -180,7 +180,7 @@ func TestFormParsing(t *testing.T) {
 		),
 	)
 	t.Run("fail mp3 invalid quality flag",
-		testFail(form.New(form.Limits{}),
+		testFail(input.New(input.Limits{}),
 			newWavRequest(map[string]string{
 				"format":            ".mp3",
 				"mp3-channel-mode":  "1",
@@ -191,7 +191,7 @@ func TestFormParsing(t *testing.T) {
 		),
 	)
 	t.Run("fail mp3 invalid quality value",
-		testFail(form.New(form.Limits{}),
+		testFail(input.New(input.Limits{}),
 			newWavRequest(map[string]string{
 				"format":            ".mp3",
 				"mp3-channel-mode":  "1",
@@ -205,7 +205,7 @@ func TestFormParsing(t *testing.T) {
 }
 
 func TestForm(t *testing.T) {
-	f := form.New(form.Limits{})
+	f := input.New(input.Limits{})
 	_, err := html.Parse(bytes.NewReader(f.Bytes()))
 	assertEqual(t, "html error", err, nil)
 }

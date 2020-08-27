@@ -6,15 +6,36 @@ import (
 	"io/ioutil"
 	"log"
 	"mime"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"strconv"
 
-	"github.com/pipelined/phono/encode/internal/form"
+	"pipelined.dev/audio/fileformat"
+	"pipelined.dev/pipe"
 )
 
-// Limits for input files uploaded via encode form.
-type Limits form.Limits
+type (
+	Form interface {
+		Bytes() []byte
+		Parse(*http.Request) (FormData, error)
+	}
+
+	// FormData contains parsed form data.
+	FormData struct {
+		Input
+		Output
+	}
+
+	Input struct {
+		fileformat.Format
+		multipart.File
+	}
+	Output struct {
+		fileformat.Format
+		Sink func(io.WriteSeeker) pipe.SinkAllocatorFunc
+	}
+)
 
 // Handler form files to the format provided by form.
 // Process request steps:
@@ -24,8 +45,7 @@ type Limits form.Limits
 //	4. Create temp file
 //	5. Run conversion
 //	6. Send result file
-func Handler(l Limits, bufferSize int, tempDir string) http.Handler {
-	f := form.New(form.Limits(l))
+func Handler(f Form, bufferSize int, tempDir string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -39,7 +59,7 @@ func Handler(l Limits, bufferSize int, tempDir string) http.Handler {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			defer formData.Input.File.Close()
+			defer formData.Close()
 
 			// create temp file
 			tempFile, err := ioutil.TempFile(tempDir, "")
@@ -50,7 +70,7 @@ func Handler(l Limits, bufferSize int, tempDir string) http.Handler {
 			defer cleanUp(tempFile)
 
 			// encode file using temp file
-			if err = Run(r.Context(), bufferSize, formData.Input.Format.Source(formData.Input.File), formData.Output.Sink(tempFile)); err != nil {
+			if err = Run(r.Context(), bufferSize, formData.Input.Source(formData.File), formData.Output.Sink(tempFile)); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
@@ -68,8 +88,8 @@ func Handler(l Limits, bufferSize int, tempDir string) http.Handler {
 			}
 			fileSize := strconv.FormatInt(stat.Size(), 10)
 			//Send the headers
-			w.Header().Set("Content-Disposition", "attachment; filename="+outFileName("result", 1, formData.Output.Format.DefaultExtension()))
-			w.Header().Set("Content-Type", mime.TypeByExtension(formData.Output.Format.DefaultExtension()))
+			w.Header().Set("Content-Disposition", "attachment; filename="+outFileName("result", 1, formData.Output.DefaultExtension()))
+			w.Header().Set("Content-Type", mime.TypeByExtension(formData.Output.DefaultExtension()))
 			w.Header().Set("Content-Length", fileSize)
 			_, err = io.Copy(w, tempFile) // send file to a client
 			if err != nil {

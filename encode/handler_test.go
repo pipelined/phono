@@ -12,10 +12,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"pipelined.dev/audio/fileformat"
 
 	"github.com/pipelined/phono/encode"
-	"github.com/pipelined/phono/encode/internal/form"
+	"github.com/pipelined/phono/input"
 )
 
 func parseURL(raw string) (result *url.URL) {
@@ -33,7 +32,7 @@ func fileUploadRequest(uri string, params map[string]string, filePath string) *h
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	part, err := writer.CreateFormFile(form.FormFileKey, filepath.Base(filePath))
+	part, err := writer.CreateFormFile(input.FormFileKey, filepath.Base(filePath))
 	if err != nil {
 		panic(err)
 	}
@@ -64,8 +63,9 @@ func notMediaUploadRequest(uri string, params map[string]string) *http.Request {
 }
 
 func TestHandler(t *testing.T) {
+	f := input.New(input.Limits{})
 	bufferSize := 512
-	testHandler := func(l encode.Limits, r *http.Request, expectedStatus int) func(t *testing.T) {
+	testHandler := func(l encode.Form, r *http.Request, expectedStatus int) func(t *testing.T) {
 		return func(t *testing.T) {
 			t.Helper()
 			h := encode.Handler(l, bufferSize, "")
@@ -77,7 +77,7 @@ func TestHandler(t *testing.T) {
 		}
 	}
 	t.Run("not allowed method",
-		testHandler(encode.Limits{},
+		testHandler(f,
 			&http.Request{
 				Method: http.MethodPut,
 				URL:    parseURL("test/.wav"),
@@ -85,7 +85,7 @@ func TestHandler(t *testing.T) {
 			http.StatusMethodNotAllowed),
 	)
 	t.Run("not allowed input format",
-		testHandler(encode.Limits{},
+		testHandler(f,
 			&http.Request{
 				Method: http.MethodPost,
 				URL:    parseURL("test/.test"),
@@ -93,7 +93,7 @@ func TestHandler(t *testing.T) {
 			http.StatusBadRequest),
 	)
 	t.Run("wav empty body",
-		testHandler(encode.Limits{},
+		testHandler(f,
 			&http.Request{
 				Method: http.MethodPost,
 				URL:    parseURL("test/.wav"),
@@ -101,16 +101,8 @@ func TestHandler(t *testing.T) {
 			http.StatusBadRequest),
 	)
 	t.Run("wav missing bit depth",
-		testHandler(encode.Limits{},
+		testHandler(f,
 			wavUploadRequest(nil),
-			http.StatusBadRequest),
-	)
-	t.Run("wav max size exceeded",
-		testHandler(encode.Limits{fileformat.WAV: 10},
-			wavUploadRequest(map[string]string{
-				"format":        ".wav",
-				"wav-bit-depth": "16",
-			}),
 			http.StatusBadRequest),
 	)
 }

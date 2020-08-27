@@ -1,17 +1,16 @@
-package form
+package input
 
 import (
 	"bytes"
 	"errors"
 	"fmt"
-	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"text/template"
 
-	"github.com/pipelined/phono/input"
+	"github.com/pipelined/phono/encode"
 	"pipelined.dev/audio/fileformat"
 )
 
@@ -33,22 +32,6 @@ type (
 	Form struct {
 		buf    bytes.Buffer
 		limits Limits
-	}
-
-	// Data contains parsed form data.
-	Data struct {
-		Input  encodeInput
-		Output encodeOutput
-	}
-
-	encodeInput struct {
-		fileformat.Format
-		multipart.File
-		Limit int64
-	}
-	encodeOutput struct {
-		fileformat.Format
-		input.Sink
 	}
 
 	// templateData provides a data for encode form template, so user can
@@ -78,8 +61,8 @@ func New(limits Limits) Form {
 			fileformat.WAV,
 			fileformat.MP3,
 		),
-		WAV: input.WAV,
-		MP3: input.MP3,
+		WAV: WAV,
+		MP3: MP3,
 	})
 	if err != nil {
 		panic(fmt.Sprintf("failed to parse encode template: %v", err))
@@ -96,10 +79,10 @@ func (f Form) Bytes() []byte {
 }
 
 // Parse returns the data provided by the user via submitted form.
-func (f Form) Parse(r *http.Request) (Data, error) {
+func (f Form) Parse(r *http.Request) (encode.FormData, error) {
 	inputFormat := fileformat.FormatByPath(r.URL.Path)
 	if inputFormat == nil {
-		return Data{}, errInputFormat
+		return encode.FormData{}, errInputFormat
 	}
 	// get max size for the format
 	maxSize := f.inputMaxSize(inputFormat)
@@ -111,27 +94,26 @@ func (f Form) Parse(r *http.Request) (Data, error) {
 	}
 	// check max size
 	if err := r.ParseMultipartForm(maxSize); err != nil {
-		return Data{}, err
+		return encode.FormData{}, err
 	}
 
 	file, _, err := r.FormFile(FormFileKey)
 	if err != nil {
-		return Data{}, err
+		return encode.FormData{}, err
 	}
 
 	// parse sink and validate parameters
 	sink, outputFormat, err := parseOutput(r.MultipartForm.Value)
 	if err != nil {
-		return Data{}, err
+		return encode.FormData{}, err
 	}
 
-	return Data{
-		Input: encodeInput{
+	return encode.FormData{
+		Input: encode.Input{
 			Format: inputFormat,
-			Limit:  maxSize,
 			File:   file,
 		},
-		Output: encodeOutput{
+		Output: encode.Output{
 			Format: outputFormat,
 			Sink:   sink,
 		},
@@ -172,11 +154,11 @@ func (f Form) inputMaxSize(format fileformat.Format) int64 {
 
 // ParseForm provided via form.
 // This function should return extensions, sinkbuilder
-func parseOutput(formData url.Values) (input.Sink, fileformat.Format, error) {
+func parseOutput(formData url.Values) (Sink, fileformat.Format, error) {
 	formatString := strings.ToLower(formData.Get("format"))
 	format := fileformat.FormatByPath(formatString)
 	var (
-		sink input.Sink
+		sink Sink
 		err  error
 	)
 	switch format {
@@ -190,16 +172,16 @@ func parseOutput(formData url.Values) (input.Sink, fileformat.Format, error) {
 	return sink, format, err
 }
 
-func parseWAVSink(data url.Values) (input.Sink, error) {
+func parseWAVSink(data url.Values) (Sink, error) {
 	// try to get bit depth
 	bitDepth, err := parseIntValue(data, "wav-bit-depth", "bit depth")
 	if err != nil {
 		return nil, err
 	}
-	return input.WAV.Sink(bitDepth)
+	return WAV.Sink(bitDepth)
 }
 
-func parseMP3Sink(data url.Values) (input.Sink, error) {
+func parseMP3Sink(data url.Values) (Sink, error) {
 	// try to get channel mode
 	channelMode, err := parseIntValue(data, "mp3-channel-mode", "channel mode")
 	if err != nil {
@@ -210,13 +192,13 @@ func parseMP3Sink(data url.Values) (input.Sink, error) {
 	// try to get bit rate mode
 	bitRateMode := data.Get("mp3-bit-rate-mode")
 	switch bitRateMode {
-	case input.MP3.VBR:
+	case MP3.VBR:
 		// try to get vbr quality
 		bitRate, err = parseIntValue(data, "mp3-vbr-quality", "vbr quality")
 		if err != nil {
 			return nil, err
 		}
-	case input.MP3.CBR, input.MP3.ABR:
+	case MP3.CBR, MP3.ABR:
 		// try to get bitrate
 		bitRate, err = parseIntValue(data, "mp3-bit-rate", "bit rate")
 		if err != nil {
@@ -239,7 +221,7 @@ func parseMP3Sink(data url.Values) (input.Sink, error) {
 		}
 	}
 
-	return input.MP3.Sink(bitRateMode, bitRate, channelMode, useQuality, quality)
+	return MP3.Sink(bitRateMode, bitRate, channelMode, useQuality, quality)
 }
 
 // parseIntValue parses value of key provided in the html form. Returns

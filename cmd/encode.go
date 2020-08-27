@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -11,8 +12,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/pipelined/phono/encode"
-	"github.com/pipelined/phono/input"
 	"pipelined.dev/audio/fileformat"
+	"pipelined.dev/pipe"
 )
 
 var (
@@ -29,7 +30,7 @@ func init() {
 	rootCmd.AddCommand(encodeCmd)
 }
 
-func encodeCLI(ctx context.Context, paths []string, recursive bool, outDir string, bufferSize int, sink input.Sink, ext string) {
+func encodeCLI(ctx context.Context, paths []string, recursive bool, outDir string, bufferSize int, sink func(io.WriteSeeker) pipe.SinkAllocatorFunc, ext string) {
 	if outDir != "" {
 		if _, err := os.Stat(outDir); os.IsNotExist(err) {
 			log.Printf("Out path doesn't exist: %v", err)

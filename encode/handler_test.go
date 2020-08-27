@@ -105,4 +105,12 @@ func TestHandler(t *testing.T) {
 			wavUploadRequest(nil),
 			http.StatusBadRequest),
 	)
+	t.Run("wav ok",
+		testHandler(f,
+			wavUploadRequest(map[string]string{
+				"format":        ".wav",
+				"wav-bit-depth": "16",
+			}),
+			http.StatusOK),
+	)
 }

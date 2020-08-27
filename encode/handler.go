@@ -16,6 +16,7 @@ import (
 )
 
 type (
+	// Form provides user-input for http encoding.
 	Form interface {
 		Bytes() []byte
 		Parse(*http.Request) (FormData, error)
@@ -27,10 +28,13 @@ type (
 		Output
 	}
 
+	// Input is user-provided input for encoding.
 	Input struct {
 		fileformat.Format
 		multipart.File
 	}
+
+	// Output is user-provided output for encoding.
 	Output struct {
 		fileformat.Format
 		Sink func(io.WriteSeeker) pipe.SinkAllocatorFunc

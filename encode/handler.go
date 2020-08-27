@@ -39,7 +39,7 @@ type (
 
 // Handler form files to the format provided by form.
 // Process request steps:
-//	1. Retrieve input format from URL
+//	1. Retrieve userinput format from URL
 //	2. Use http.MaxBytesReader to avoid memory abuse
 //	3. Parse output configuration
 //	4. Create temp file
@@ -102,7 +102,7 @@ func Handler(f Form, bufferSize int, tempDir string) http.Handler {
 	})
 }
 
-// outFileName return output file name. It replaces input format extension with output.
+// outFileName return output file name. It replaces userinput format extension with output.
 func outFileName(prefix string, idx int, ext string) string {
 	return fmt.Sprintf("%v_%d%v", prefix, idx, ext)
 }

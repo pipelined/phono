@@ -1,4 +1,4 @@
-package input
+package userinput
 
 import (
 	"bytes"
@@ -15,21 +15,21 @@ import (
 )
 
 var (
-	errInputFormat  = errors.New("unsupported input format")
+	errInputFormat  = errors.New("unsupported userinput format")
 	errOutputFormat = errors.New("unsupported output format")
 )
 
 var formTemplate = template.Must(template.New("encode").Parse(encodeHTML))
 
-// FormFileKey is the id of the file input in the HTML form.
-const FormFileKey = "input-file"
+// FormFileKey is the id of the file userinput in the HTML form.
+const FormFileKey = "userinput-file"
 
 type (
-	// Limits for input files uploaded via form.
+	// Limits for user-provided input files.
 	Limits map[fileformat.Format]int64
 
-	// Form provides user interaction via http form.
-	Form struct {
+	// EncodeForm provides user interaction via http form.
+	EncodeForm struct {
 		buf    bytes.Buffer
 		limits Limits
 	}
@@ -45,8 +45,8 @@ type (
 	}
 )
 
-// New creates new form with provided limits.
-func New(limits Limits) Form {
+// NewEncodeForm creates new form with provided limits.
+func NewEncodeForm(limits Limits) EncodeForm {
 	var buf bytes.Buffer
 	err := formTemplate.Execute(&buf, templateData{
 		MaxSizes: limits.maxSizes(),
@@ -67,19 +67,19 @@ func New(limits Limits) Form {
 	if err != nil {
 		panic(fmt.Sprintf("failed to parse encode template: %v", err))
 	}
-	return Form{
+	return EncodeForm{
 		buf:    buf,
 		limits: limits,
 	}
 }
 
 // Bytes returns serialized form, ready to be served.
-func (f Form) Bytes() []byte {
+func (f EncodeForm) Bytes() []byte {
 	return f.buf.Bytes()
 }
 
 // Parse returns the data provided by the user via submitted form.
-func (f Form) Parse(r *http.Request) (encode.FormData, error) {
+func (f EncodeForm) Parse(r *http.Request) (encode.FormData, error) {
 	inputFormat := fileformat.FormatByPath(r.URL.Path)
 	if inputFormat == nil {
 		return encode.FormData{}, errInputFormat
@@ -148,7 +148,7 @@ func (l Limits) maxSizes() map[string]int64 {
 }
 
 // inputMaxSize of file from http request.
-func (f Form) inputMaxSize(format fileformat.Format) int64 {
+func (f EncodeForm) inputMaxSize(format fileformat.Format) int64 {
 	return f.limits[format]
 }
 
@@ -311,17 +311,17 @@ const encodeHTML = `
         #output-format-block {
             display: none;
         }
-        #input-file {
+        #userinput-file {
             display: none;
         }
-        #input-file-label {
+        #userinput-file-label {
             cursor: pointer;
             padding:0!important;
             border-bottom:1px solid #444;
         }
     </style>
     <script type="text/javascript">
-        const fileId = 'input-file';
+        const fileId = 'userinput-file';
         const accept = '{{ .Accept }}';
         function getFile() {
             return document.getElementById(fileId);
@@ -349,7 +349,7 @@ const encodeHTML = `
         document.addEventListener('DOMContentLoaded', function(event) {
             document.getElementById('encode').reset();
             // base form handlers
-            document.getElementById('input-file').addEventListener('change', onInputFileChange);
+            document.getElementById('userinput-file').addEventListener('change', onInputFileChange);
             document.getElementById('output-format').addEventListener('change', onOutputFormatChange);
             document.getElementById('submit-button').addEventListener('click', onSubmitClick);
             // mp3 handlers
@@ -358,13 +358,13 @@ const encodeHTML = `
         });
         function onInputFileChange(){
             var fileName = getFileName(getFile());
-            document.getElementById('input-file-label').innerHTML = fileName;
+            document.getElementById('userinput-file-label').innerHTML = fileName;
             var ext = getFileExtension(fileName);
             if (accept.indexOf(ext) < 0) {
                 alert('Only files with following extensions are allowed: {{.Accept}}')
                 return;
             }
-            displayClass('input-file-label', 'inline');
+            displayClass('userinput-file-label', 'inline');
             displayId('output-format-block', 'inline');
         }
 		function onOutputFormatChange(){
@@ -410,8 +410,8 @@ const encodeHTML = `
         <h2>phono encode</h1>
         <form id="encode" enctype="multipart/form-data" method="post">
         <div class="file">
-            <input id="input-file" type="file" name="input-file" accept="{{.Accept}}"/>
-            <label id="input-file-label" for="input-file">select file</label>
+            <userinput id="userinput-file" type="file" name="userinput-file" accept="{{.Accept}}"/>
+            <label id="userinput-file-label" for="userinput-file">select file</label>
         </div>
         <div class="outputs">
             <div id="output-format-block" class="option">
@@ -449,17 +449,17 @@ const encodeHTML = `
                 </select>
                 <div class="mp3-bit-rate-mode-options mp3-{{ .MP3.ABR }}-options mp3-{{ .MP3.CBR }}-options">
                     bit rate [{{ .MP3.MinBitRate }}-{{ .MP3.MaxBitRate }}]
-                    <input type="text" class="option" name="mp3-bit-rate" maxlength="3" size="3">
+                    <userinput type="text" class="option" name="mp3-bit-rate" maxlength="3" size="3">
                 </div>
                 <div class="mp3-bit-rate-mode-options mp3-{{ .MP3.VBR }}-options">
                     vbr quality [{{ .MP3.MinVBR }}-{{ .MP3.MaxVBR }}]
-                    <input type="text" class="option" name="mp3-vbr-quality" maxlength="1" size="3">
+                    <userinput type="text" class="option" name="mp3-vbr-quality" maxlength="1" size="3">
                 </div>
                 <div class="mp3-quality">
-                    <input type="checkbox" id="mp3-use-quality" name="mp3-use-quality" value="true">quality
+                    <userinput type="checkbox" id="mp3-use-quality" name="mp3-use-quality" value="true">quality
                     <div id="mp3-quality-value" class="mp3-quality" style="visibility:hidden">
                         [{{ .MP3.MinQuality }}-{{ .MP3.MaxQuality }}]
-                        <input type="text" class="option" name="mp3-quality" maxlength="1" size="3">
+                        <userinput type="text" class="option" name="mp3-quality" maxlength="1" size="3">
                     </div>
                 </div>
             </div>

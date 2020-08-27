@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/pipelined/phono/encode"
-	"github.com/pipelined/phono/input"
+	"github.com/pipelined/phono/userinput"
 )
 
 func parseURL(raw string) (result *url.URL) {
@@ -32,7 +32,7 @@ func fileUploadRequest(uri string, params map[string]string, filePath string) *h
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	part, err := writer.CreateFormFile(input.FormFileKey, filepath.Base(filePath))
+	part, err := writer.CreateFormFile(userinput.FormFileKey, filepath.Base(filePath))
 	if err != nil {
 		panic(err)
 	}
@@ -63,7 +63,7 @@ func notMediaUploadRequest(uri string, params map[string]string) *http.Request {
 }
 
 func TestHandler(t *testing.T) {
-	f := input.New(input.Limits{})
+	f := userinput.NewEncodeForm(userinput.Limits{})
 	bufferSize := 512
 	testHandler := func(l encode.Form, r *http.Request, expectedStatus int) func(t *testing.T) {
 		return func(t *testing.T) {
@@ -84,7 +84,7 @@ func TestHandler(t *testing.T) {
 			},
 			http.StatusMethodNotAllowed),
 	)
-	t.Run("not allowed input format",
+	t.Run("not allowed userinput format",
 		testHandler(f,
 			&http.Request{
 				Method: http.MethodPost,

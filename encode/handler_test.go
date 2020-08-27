@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"pipelined.dev/audio/fileformat"
 
 	"github.com/pipelined/phono/encode"
 	"github.com/pipelined/phono/encode/internal/form"
@@ -58,10 +59,6 @@ func wavUploadRequest(params map[string]string) *http.Request {
 	return fileUploadRequest("test/.wav", params, "../_testdata/sample.wav")
 }
 
-func mp3UploadRequest(params map[string]string) *http.Request {
-	return fileUploadRequest("test/.mp3", params, "../_testdata/sample.mp3")
-}
-
 func notMediaUploadRequest(uri string, params map[string]string) *http.Request {
 	return fileUploadRequest(uri, params, "../_testdata/not-media")
 }
@@ -95,17 +92,6 @@ func TestHandler(t *testing.T) {
 			},
 			http.StatusBadRequest),
 	)
-	t.Run("not allowed output format",
-		testHandler(encode.Limits{},
-			fileUploadRequest(
-				"test/.mp3",
-				map[string]string{
-					"format": "non-existing-format",
-				},
-				"../_testdata/sample.mp3",
-			),
-			http.StatusBadRequest),
-	)
 	t.Run("wav empty body",
 		testHandler(encode.Limits{},
 			&http.Request{
@@ -120,158 +106,10 @@ func TestHandler(t *testing.T) {
 			http.StatusBadRequest),
 	)
 	t.Run("wav max size exceeded",
-		testHandler(encode.Limits{WAV: 10},
+		testHandler(encode.Limits{fileformat.WAV: 10},
 			wavUploadRequest(map[string]string{
 				"format":        ".wav",
 				"wav-bit-depth": "16",
-			}),
-			http.StatusBadRequest),
-	)
-	t.Run("wav max size exceeded",
-		testHandler(encode.Limits{WAV: 10},
-			wavUploadRequest(map[string]string{
-				"format":        ".wav",
-				"wav-bit-depth": "16",
-			}),
-			http.StatusBadRequest),
-	)
-	t.Run("wav not media type",
-		testHandler(encode.Limits{},
-			notMediaUploadRequest("test/.wav", map[string]string{
-				"format":        ".wav",
-				"wav-bit-depth": "16",
-			}),
-			http.StatusBadRequest),
-	)
-	t.Run("wav ok",
-		testHandler(encode.Limits{},
-			wavUploadRequest(map[string]string{
-				"format":        ".wav",
-				"wav-bit-depth": "16",
-			}),
-			http.StatusOK),
-	)
-	t.Run("mp3 vbr ok",
-		testHandler(encode.Limits{},
-			mp3UploadRequest(map[string]string{
-				"format":            ".mp3",
-				"mp3-channel-mode":  "1",
-				"mp3-bit-rate-mode": "VBR",
-				"mp3-vbr-quality":   "1",
-				"mp3-use-quality":   "true",
-				"mp3-quality":       "1",
-			}),
-			http.StatusOK),
-	)
-	t.Run("mp3 cbr ok",
-		testHandler(encode.Limits{},
-			mp3UploadRequest(map[string]string{
-				"format":            ".mp3",
-				"mp3-channel-mode":  "1",
-				"mp3-bit-rate-mode": "CBR",
-				"mp3-bit-rate":      "320",
-			}),
-			http.StatusOK),
-	)
-	t.Run("mp3 abr ok",
-		testHandler(encode.Limits{},
-			mp3UploadRequest(map[string]string{
-				"format":            ".mp3",
-				"mp3-channel-mode":  "1",
-				"mp3-bit-rate-mode": "ABR",
-				"mp3-bit-rate":      "320",
-			}),
-			http.StatusOK),
-	)
-	t.Run("wav as mp3",
-		testHandler(encode.Limits{},
-			fileUploadRequest(
-				"test/.mp3",
-				map[string]string{
-					"format": ".wav",
-				},
-				"../_testdata/sample.wav",
-			),
-			http.StatusBadRequest),
-	)
-	t.Run("wav invalid bit depth",
-		testHandler(encode.Limits{},
-			wavUploadRequest(
-				map[string]string{
-					"format":        ".wav",
-					"wav-bit-depth": "non-int-value",
-				},
-			),
-			http.StatusBadRequest),
-	)
-	t.Run("mp3 invalid channel mode",
-		testHandler(encode.Limits{},
-			mp3UploadRequest(map[string]string{
-				"format":           ".mp3",
-				"mp3-channel-mode": "invalid-channel-mode",
-			}),
-			http.StatusBadRequest),
-	)
-	t.Run("mp3 invalid vbr quality",
-		testHandler(encode.Limits{},
-			mp3UploadRequest(map[string]string{
-				"format":            ".mp3",
-				"mp3-channel-mode":  "1",
-				"mp3-bit-rate-mode": "VBR",
-				"mp3-vbr-quality":   "",
-			}),
-			http.StatusBadRequest),
-	)
-	t.Run("mp3 invalid quality flag",
-		testHandler(encode.Limits{},
-			mp3UploadRequest(map[string]string{
-				"format":            ".mp3",
-				"mp3-channel-mode":  "1",
-				"mp3-bit-rate-mode": "VBR",
-				"mp3-vbr-quality":   "1",
-				"mp3-use-quality":   "non-bool",
-			}),
-			http.StatusBadRequest),
-	)
-	t.Run("mp3 invalid quality flag",
-		testHandler(encode.Limits{},
-			mp3UploadRequest(map[string]string{
-				"format":            ".mp3",
-				"mp3-channel-mode":  "1",
-				"mp3-bit-rate-mode": "VBR",
-				"mp3-vbr-quality":   "1",
-				"mp3-use-quality":   "true",
-				"mp3-quality":       "",
-			}),
-			http.StatusBadRequest),
-	)
-	t.Run("mp3 invalid VBR bit rate",
-		testHandler(encode.Limits{},
-			mp3UploadRequest(map[string]string{
-				"format":            ".mp3",
-				"mp3-channel-mode":  "1",
-				"mp3-bit-rate-mode": "VBR",
-				"mp3-bit-rate":      "",
-			}),
-			http.StatusBadRequest),
-	)
-	t.Run("mp3 invalid ABR bit rate",
-		testHandler(encode.Limits{},
-			mp3UploadRequest(map[string]string{
-				"format":            ".mp3",
-				"mp3-channel-mode":  "1",
-				"mp3-bit-rate-mode": "ABR",
-				"mp3-bit-rate":      "",
-			}),
-			http.StatusBadRequest),
-	)
-	t.Run("mp3 invalid CBR bit rate",
-		testHandler(encode.Limits{},
-			mp3UploadRequest(map[string]string{
-				"format":            ".mp3",
-				"mp3-channel-mode":  "1",
-				"mp3-bit-rate-mode": "CBR",
-				"mp3-bit-rate":      "",
 			}),
 			http.StatusBadRequest),
 	)

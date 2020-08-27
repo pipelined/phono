@@ -63,8 +63,8 @@ func encodeCLI(ctx context.Context, paths []string, recursive bool, outDir strin
 		}
 
 		// try to parse format
-		format, ok := fileformat.FormatByPath(path)
-		if !ok {
+		format := fileformat.FormatByPath(path)
+		if format == nil {
 			// file is not supported, skip
 			return nil
 		}

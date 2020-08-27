@@ -13,6 +13,7 @@ import (
 	"github.com/pipelined/phono/encode/internal/form"
 )
 
+// Limits for input files uploaded via encode form.
 type Limits form.Limits
 
 // Handler form files to the format provided by form.

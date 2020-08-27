@@ -63,13 +63,6 @@ var (
 	}
 )
 
-// hasExtension validates if filename has one of passed extensions.
-// Filename is lower-cased before comparison.
-func hasExtension(ext string, exts map[string]struct{}) bool {
-	_, ok := exts[ext]
-	return ok
-}
-
 // WAVSink validates all parameters required to build wav sink. If valid, build closure is returned.
 // Closure allows to postpone io opertaions and do them only after all sink parameters are validated.
 func (f wavSink) Sink(bitDepth int) (Sink, error) {

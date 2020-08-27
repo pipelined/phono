@@ -27,11 +27,7 @@ const FormFileKey = "input-file"
 
 type (
 	// Limits for input files uploaded via form.
-	Limits struct {
-		WAV  int64
-		MP3  int64
-		FLAC int64
-	}
+	Limits map[fileformat.Format]int64
 
 	// Form provides user interaction via http form.
 	Form struct {
@@ -67,12 +63,10 @@ type (
 )
 
 // New creates new form with provided limits.
-func New(l Limits) Form {
-	f := Form{
-		limits: l,
-	}
-	err := formTemplate.Execute(&f.buf, templateData{
-		MaxSizes: l.maxSizes(),
+func New(limits Limits) Form {
+	var buf bytes.Buffer
+	err := formTemplate.Execute(&buf, templateData{
+		MaxSizes: limits.maxSizes(),
 		Accept: strings.Join(
 			inputExtensions(
 				fileformat.WAV,
@@ -90,7 +84,10 @@ func New(l Limits) Form {
 	if err != nil {
 		panic(fmt.Sprintf("failed to parse encode template: %v", err))
 	}
-	return f
+	return Form{
+		buf:    buf,
+		limits: limits,
+	}
 }
 
 // Bytes returns serialized form, ready to be served.
@@ -100,8 +97,8 @@ func (f Form) Bytes() []byte {
 
 // Parse returns the data provided by the user via submitted form.
 func (f Form) Parse(r *http.Request) (Data, error) {
-	inputFormat, ok := fileformat.FormatByPath(r.URL.Path)
-	if !ok {
+	inputFormat := fileformat.FormatByPath(r.URL.Path)
+	if inputFormat == nil {
 		return Data{}, errInputFormat
 	}
 	// get max size for the format
@@ -123,15 +120,11 @@ func (f Form) Parse(r *http.Request) (Data, error) {
 	}
 
 	// parse sink and validate parameters
-	sink, ext, err := ParseForm(r.MultipartForm.Value)
+	sink, outputFormat, err := parseOutput(r.MultipartForm.Value)
 	if err != nil {
 		return Data{}, err
 	}
 
-	outputFormat, ok := fileformat.FormatByPath(ext)
-	if !ok {
-		return Data{}, errOutputFormat
-	}
 	return Data{
 		Input: encodeInput{
 			Format: inputFormat,
@@ -164,47 +157,37 @@ func outputExtensions(formats ...fileformat.Format) []string {
 
 func (l Limits) maxSizes() map[string]int64 {
 	m := make(map[string]int64)
-	for _, ext := range fileformat.MP3.Extensions() {
-		m[ext] = l.MP3
-	}
-	for _, ext := range fileformat.WAV.Extensions() {
-		m[ext] = l.WAV
-	}
-	for _, ext := range fileformat.FLAC.Extensions() {
-		m[ext] = l.FLAC
+	for format, limit := range l {
+		for _, ext := range format.Extensions() {
+			m[ext] = limit
+		}
 	}
 	return m
 }
 
 // inputMaxSize of file from http request.
 func (f Form) inputMaxSize(format fileformat.Format) int64 {
-	switch format {
-	case fileformat.MP3:
-		return f.limits.MP3
-	case fileformat.WAV:
-		return f.limits.WAV
-	case fileformat.FLAC:
-		return f.limits.FLAC
-	}
-	return 0
+	return f.limits[format]
 }
 
 // ParseForm provided via form.
 // This function should return extensions, sinkbuilder
-func ParseForm(formData url.Values) (fn input.Sink, ext string, err error) {
-	ext = strings.ToLower(formData.Get("format"))
-	switch ext {
-	case fileformat.WAV.DefaultExtension():
-		fn, err = parseWAVSink(formData)
-	case fileformat.MP3.DefaultExtension():
-		fn, err = parseMP3Sink(formData)
+func parseOutput(formData url.Values) (input.Sink, fileformat.Format, error) {
+	formatString := strings.ToLower(formData.Get("format"))
+	format := fileformat.FormatByPath(formatString)
+	var (
+		sink input.Sink
+		err  error
+	)
+	switch format {
+	case fileformat.WAV:
+		sink, err = parseWAVSink(formData)
+	case fileformat.MP3:
+		sink, err = parseMP3Sink(formData)
 	default:
-		err = fmt.Errorf("Unsupported format: %v", ext)
+		return nil, nil, fmt.Errorf("Unsupported format: %v", formatString)
 	}
-	if err != nil {
-		ext = ""
-	}
-	return
+	return sink, format, err
 }
 
 func parseWAVSink(data url.Values) (input.Sink, error) {
@@ -223,13 +206,9 @@ func parseMP3Sink(data url.Values) (input.Sink, error) {
 		return nil, err
 	}
 
+	var bitRate int
 	// try to get bit rate mode
 	bitRateMode := data.Get("mp3-bit-rate-mode")
-	if bitRateMode == "" {
-		return nil, fmt.Errorf("Please provide bit rate mode")
-	}
-
-	var bitRate int
 	switch bitRateMode {
 	case input.MP3.VBR:
 		// try to get vbr quality
@@ -237,18 +216,14 @@ func parseMP3Sink(data url.Values) (input.Sink, error) {
 		if err != nil {
 			return nil, err
 		}
-	case input.MP3.CBR:
+	case input.MP3.CBR, input.MP3.ABR:
 		// try to get bitrate
 		bitRate, err = parseIntValue(data, "mp3-bit-rate", "bit rate")
 		if err != nil {
 			return nil, err
 		}
-	case input.MP3.ABR:
-		// try to get bitrate
-		bitRate, err = parseIntValue(data, "mp3-bit-rate", "bit rate")
-		if err != nil {
-			return nil, err
-		}
+	default:
+		return nil, fmt.Errorf("Unsupported bit rate mode: %v", bitRateMode)
 	}
 
 	// try to get mp3 quality

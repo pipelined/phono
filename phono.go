@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/pipelined/phono/cmd"
+	"pipelined.dev/phono/cmd"
 )
 
 func main() {

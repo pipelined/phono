@@ -3,8 +3,9 @@ package userinput_test
 import (
 	"testing"
 
-	"github.com/pipelined/phono/userinput"
 	"github.com/stretchr/testify/assert"
+
+	"pipelined.dev/phono/userinput"
 )
 
 func TestBuildWav(t *testing.T) {

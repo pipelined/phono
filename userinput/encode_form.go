@@ -10,8 +10,9 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/pipelined/phono/encode"
 	"pipelined.dev/audio/fileformat"
+
+	"pipelined.dev/phono/encode"
 )
 
 var (

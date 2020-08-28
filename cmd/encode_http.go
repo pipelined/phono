@@ -10,8 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/pipelined/phono/encode"
-	"github.com/pipelined/phono/userinput"
+	"pipelined.dev/phono/encode"
+	"pipelined.dev/phono/userinput"
 )
 
 var (

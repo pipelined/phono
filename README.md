@@ -1,8 +1,8 @@
 ![](phono.png)
 
-[![GoDoc](https://godoc.org/github.com/pipelined/phono?status.svg)](https://godoc.org/github.com/pipelined/phono)
+[![GoDoc](https://godoc.org/pipelined.dev/phono?status.svg)](https://godoc.org/pipelined.dev/phono)
 [![Build Status](https://travis-ci.org/pipelined/phono.svg?branch=master)](https://travis-ci.org/pipelined/phono)
-[![Go Report Card](https://goreportcard.com/badge/github.com/pipelined/phono)](https://goreportcard.com/report/github.com/pipelined/phono)
+[![Go Report Card](https://goreportcard.com/badge/pipelined.dev/phono)](https://goreportcard.com/report/pipelined.dev/phono)
 [![codecov](https://codecov.io/gh/pipelined/phono/branch/master/graph/badge.svg)](https://codecov.io/gh/pipelined/phono)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fpipelined%2Fphono.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fpipelined%2Fphono?ref=badge_shield)
 
@@ -16,7 +16,7 @@ Prerequisites:
 
 To link lame from custom location, set `CGO_CFLAGS=-I<path-to-lame.h>` environment variable.
 
-`go get github.com/pipelined/phono`
+`go get pipelined.dev/phono`
 
 ## Usage
 
@@ -24,7 +24,7 @@ To link lame from custom location, set `CGO_CFLAGS=-I<path-to-lame.h>` environme
 
 ## Contributing
 
-For a complete guide to contributing to `phono`, see the [Contribution guide](https://github.com/pipelined/phono/blob/master/CONTRIBUTING.md).
+For a complete guide to contributing to `phono`, see the [Contribution guide](https://pipelined.dev/phono/blob/master/CONTRIBUTING.md).
 
 ## License
 

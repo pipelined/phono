@@ -5,9 +5,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/pipelined/phono/userinput"
 	"github.com/spf13/cobra"
 	"pipelined.dev/audio/fileformat"
+
+	"pipelined.dev/phono/userinput"
 )
 
 var (

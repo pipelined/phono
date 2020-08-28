@@ -11,9 +11,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/pipelined/phono/encode"
 	"pipelined.dev/audio/fileformat"
 	"pipelined.dev/pipe"
+
+	"pipelined.dev/phono/encode"
 )
 
 var (

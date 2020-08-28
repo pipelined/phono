@@ -10,10 +10,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/pipelined/phono/userinput"
 	"golang.org/x/net/html"
-
 	"pipelined.dev/audio/fileformat"
+
+	"pipelined.dev/phono/userinput"
 )
 
 func TestFormParsing(t *testing.T) {

@@ -13,8 +13,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/pipelined/phono/encode"
-	"github.com/pipelined/phono/userinput"
+	"pipelined.dev/phono/encode"
+	"pipelined.dev/phono/userinput"
 )
 
 func parseURL(raw string) (result *url.URL) {

@@ -1,4 +1,4 @@
-module github.com/pipelined/phono
+module pipelined.dev/phono
 
 go 1.12
 

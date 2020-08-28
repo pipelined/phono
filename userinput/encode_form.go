@@ -1,185 +1,211 @@
-package form
+package userinput
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
-	"path"
 	"strconv"
 	"strings"
 	"text/template"
 
-	"github.com/pipelined/phono/file"
+	"github.com/pipelined/phono/encode"
+	"pipelined.dev/audio/fileformat"
 )
 
 var (
-	extensions = mergeExtensions(
-		file.WAV.Extensions(),
-		file.MP3.Extensions(),
-		file.FLAC.Extensions(),
-	)
-
-	encodeForm = encodeData{
-		Accept: strings.Join(extensions, ", "),
-		OutFormats: outFormats(
-			file.WAV.DefaultExtension(),
-			file.MP3.DefaultExtension(),
-		),
-		WAV: file.WAV,
-		MP3: file.MP3,
-	}
-
-	encodeTmpl = template.Must(template.New("encode").Parse(encodeHTML))
+	errInputFormat  = errors.New("unsupported userinput format")
+	errOutputFormat = errors.New("unsupported output format")
 )
 
-func mergeExtensions(exts ...map[string]struct{}) []string {
-	result := make([]string, 0)
-	for _, m := range exts {
-		for ext := range m {
-			result = append(result, ext)
-		}
-	}
-	return result
-}
+var formTemplate = template.Must(template.New("encode").Parse(encodeHTML))
 
-// outFormats maps the extensions with values without dots.
-func outFormats(exts ...string) map[string]string {
-	m := make(map[string]string)
-	for _, ext := range exts {
-		m[ext] = ext[1:]
-	}
-	return m
-}
+// FormFileKey is the id of the file userinput in the HTML form.
+const FormFileKey = "userinput-file"
 
-// Encode provides user interaction via http form.
 type (
-	Encode struct {
-		WavMaxSize  int64
-		Mp3MaxSize  int64
-		FlacMaxSize int64
+	// Limits for user-provided input files.
+	Limits map[*fileformat.Format]int64
+
+	// EncodeForm provides user interaction via http form.
+	EncodeForm struct {
+		buf    bytes.Buffer
+		limits Limits
 	}
 
-	// encodeData provides a data for encode form, so user can define conversion parameters.
-	encodeData struct {
+	// templateData provides a data for encode form template, so user can
+	// define conversion parameters.
+	templateData struct {
 		Accept     string
-		OutFormats map[string]string
+		OutFormats []string
 		WAV        interface{}
 		MP3        interface{}
 		MaxSizes   map[string]int64
 	}
 )
 
-const (
-	// FileKey is the id of the file input in the HTML form.
-	FileKey = "input-file"
-)
-
-// FileKey returns a name of form file value.
-func (Encode) FileKey() string {
-	return FileKey
-}
-
-// Data returns serialized form data, ready to be served.
-func (c Encode) Data() []byte {
-	d := encodeForm
-	d.MaxSizes = maxSizes(c.WavMaxSize, c.Mp3MaxSize, c.FlacMaxSize)
-
-	var b bytes.Buffer
-	if err := encodeTmpl.Execute(&b, d); err != nil {
-		panic(fmt.Sprintf("Failed to parse encode template: %v", err))
+// NewEncodeForm creates new form with provided limits.
+func NewEncodeForm(limits Limits) EncodeForm {
+	var buf bytes.Buffer
+	err := formTemplate.Execute(&buf, templateData{
+		MaxSizes: limits.maxSizes(),
+		Accept: strings.Join(
+			inputExtensions(
+				fileformat.WAV(),
+				fileformat.MP3(),
+				fileformat.FLAC(),
+			),
+			", "),
+		OutFormats: outputExtensions(
+			fileformat.WAV(),
+			fileformat.MP3(),
+		),
+		WAV: WAV,
+		MP3: MP3,
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to parse encode template: %v", err))
 	}
-	return b.Bytes()
+	return EncodeForm{
+		buf:    buf,
+		limits: limits,
+	}
 }
 
-func maxSizes(wav, mp3, flac int64) map[string]int64 {
+// Bytes returns serialized form, ready to be served.
+func (f EncodeForm) Bytes() []byte {
+	return f.buf.Bytes()
+}
+
+// Parse returns the data provided by the user via submitted form.
+func (f EncodeForm) Parse(r *http.Request) (encode.FormData, error) {
+	inputFormat := fileformat.FormatByPath(r.URL.Path)
+	if inputFormat == nil {
+		return encode.FormData{}, errInputFormat
+	}
+	// get max size for the format
+	maxSize := f.inputMaxSize(inputFormat)
+	if maxSize > 0 {
+		// check if limit is defined
+		if maxSize > 0 {
+			r.Body = http.MaxBytesReader(nil, r.Body, maxSize)
+		}
+	}
+	// check max size
+	if err := r.ParseMultipartForm(maxSize); err != nil {
+		return encode.FormData{}, err
+	}
+
+	file, _, err := r.FormFile(FormFileKey)
+	if err != nil {
+		return encode.FormData{}, err
+	}
+
+	// parse sink and validate parameters
+	sink, outputFormat, err := parseOutput(r.MultipartForm.Value)
+	if err != nil {
+		return encode.FormData{}, err
+	}
+
+	return encode.FormData{
+		Input: encode.Input{
+			Format: inputFormat,
+			File:   file,
+		},
+		Output: encode.Output{
+			Format: outputFormat,
+			Sink:   sink,
+		},
+	}, nil
+}
+
+func inputExtensions(formats ...*fileformat.Format) []string {
+	result := make([]string, 0, len(formats))
+	for i := range formats {
+		result = append(result, formats[i].Extensions()...)
+	}
+	return result
+}
+
+// outFormats maps the extensions with values without dots.
+func outputExtensions(formats ...*fileformat.Format) []string {
+	result := make([]string, 0, len(formats))
+	for i := range formats {
+		result = append(result, formats[i].DefaultExtension())
+	}
+	return result
+}
+
+func (l Limits) maxSizes() map[string]int64 {
 	m := make(map[string]int64)
-	for ext := range file.MP3.Extensions() {
-		m[ext] = mp3
-	}
-	for ext := range file.WAV.Extensions() {
-		m[ext] = wav
-	}
-	for ext := range file.FLAC.Extensions() {
-		m[ext] = flac
+	for format, limit := range l {
+		for _, ext := range format.Extensions() {
+			m[ext] = limit
+		}
 	}
 	return m
 }
 
-// InputMaxSize of file from http request.
-func (c Encode) InputMaxSize(url string) (int64, error) {
-	ext := strings.ToLower(path.Base(url))
-	switch ext {
-	case file.MP3.DefaultExtension():
-		return c.Mp3MaxSize, nil
-	case file.WAV.DefaultExtension():
-		return c.WavMaxSize, nil
-	case file.FLAC.DefaultExtension():
-		return c.FlacMaxSize, nil
-	default:
-		return 0, fmt.Errorf("Format %s not supported", ext)
-	}
+// inputMaxSize of file from http request.
+func (f EncodeForm) inputMaxSize(format *fileformat.Format) int64 {
+	return f.limits[format]
 }
 
-// ParseSink provided via form.
+// ParseForm provided via form.
 // This function should return extensions, sinkbuilder
-func (Encode) ParseSink(data url.Values) (fn file.Sink, ext string, err error) {
-	ext = strings.ToLower(data.Get("format"))
-	switch ext {
-	case file.WAV.DefaultExtension():
-		fn, err = parseWAVSink(data)
-	case file.MP3.DefaultExtension():
-		fn, err = parseMP3Sink(data)
+func parseOutput(formData url.Values) (Sink, *fileformat.Format, error) {
+	formatString := strings.ToLower(formData.Get("format"))
+	format := fileformat.FormatByPath(formatString)
+	var (
+		sink Sink
+		err  error
+	)
+	switch format {
+	case fileformat.WAV():
+		sink, err = parseWAVSink(formData)
+	case fileformat.MP3():
+		sink, err = parseMP3Sink(formData)
 	default:
-		err = fmt.Errorf("Unsupported format: %v", ext)
+		return nil, nil, fmt.Errorf("Unsupported format: %v", formatString)
 	}
-	if err != nil {
-		ext = ""
-	}
-	return
+	return sink, format, err
 }
 
-func parseWAVSink(data url.Values) (file.Sink, error) {
+func parseWAVSink(data url.Values) (Sink, error) {
 	// try to get bit depth
 	bitDepth, err := parseIntValue(data, "wav-bit-depth", "bit depth")
 	if err != nil {
 		return nil, err
 	}
-	return file.WAVSink(bitDepth)
+	return WAV.Sink(bitDepth)
 }
 
-func parseMP3Sink(data url.Values) (file.Sink, error) {
+func parseMP3Sink(data url.Values) (Sink, error) {
 	// try to get channel mode
 	channelMode, err := parseIntValue(data, "mp3-channel-mode", "channel mode")
 	if err != nil {
 		return nil, err
 	}
 
+	var bitRate int
 	// try to get bit rate mode
 	bitRateMode := data.Get("mp3-bit-rate-mode")
-	if bitRateMode == "" {
-		return nil, fmt.Errorf("Please provide bit rate mode")
-	}
-
-	var bitRate int
 	switch bitRateMode {
-	case file.MP3.VBR:
+	case MP3.VBR:
 		// try to get vbr quality
 		bitRate, err = parseIntValue(data, "mp3-vbr-quality", "vbr quality")
 		if err != nil {
 			return nil, err
 		}
-	case file.MP3.CBR:
+	case MP3.CBR, MP3.ABR:
 		// try to get bitrate
 		bitRate, err = parseIntValue(data, "mp3-bit-rate", "bit rate")
 		if err != nil {
 			return nil, err
 		}
-	case file.MP3.ABR:
-		// try to get bitrate
-		bitRate, err = parseIntValue(data, "mp3-bit-rate", "bit rate")
-		if err != nil {
-			return nil, err
-		}
+	default:
+		return nil, fmt.Errorf("Unsupported bit rate mode: %v", bitRateMode)
 	}
 
 	// try to get mp3 quality
@@ -195,11 +221,11 @@ func parseMP3Sink(data url.Values) (file.Sink, error) {
 		}
 	}
 
-	return file.MP3Sink(bitRateMode, bitRate, channelMode, useQuality, quality)
+	return MP3.Sink(bitRateMode, bitRate, channelMode, useQuality, quality)
 }
 
-// parseIntValue parses value of key provided in the html form.
-// Returns error if value is not provided or cannot be parsed as int.
+// parseIntValue parses value of key provided in the html form. Returns
+// error if value is not provided or cannot be parsed as int.
 func parseIntValue(data url.Values, key, name string) (int, error) {
 	str := data.Get(key)
 	if str == "" {
@@ -213,8 +239,9 @@ func parseIntValue(data url.Values, key, name string) (int, error) {
 	return val, nil
 }
 
-// parseBoolValue parses value of key provided in the html form.
-// Returns false if value is not provided. Returns error when cannot be parsed as bool.
+// parseBoolValue parses value of key provided in the html form. Returns
+// false if value is not provided. Returns error when cannot be parsed as
+// bool.
 func parseBoolValue(data url.Values, key, name string) (bool, error) {
 	str := data.Get(key)
 	if str == "" {
@@ -284,17 +311,17 @@ const encodeHTML = `
         #output-format-block {
             display: none;
         }
-        #input-file {
+        #userinput-file {
             display: none;
         }
-        #input-file-label {
+        #userinput-file-label {
             cursor: pointer;
             padding:0!important;
             border-bottom:1px solid #444;
         }
     </style>
     <script type="text/javascript">
-        const fileId = 'input-file';
+        const fileId = 'userinput-file';
         const accept = '{{ .Accept }}';
         function getFile() {
             return document.getElementById(fileId);
@@ -322,7 +349,7 @@ const encodeHTML = `
         document.addEventListener('DOMContentLoaded', function(event) {
             document.getElementById('encode').reset();
             // base form handlers
-            document.getElementById('input-file').addEventListener('change', onInputFileChange);
+            document.getElementById('userinput-file').addEventListener('change', onInputFileChange);
             document.getElementById('output-format').addEventListener('change', onOutputFormatChange);
             document.getElementById('submit-button').addEventListener('click', onSubmitClick);
             // mp3 handlers
@@ -331,13 +358,13 @@ const encodeHTML = `
         });
         function onInputFileChange(){
             var fileName = getFileName(getFile());
-            document.getElementById('input-file-label').innerHTML = fileName;
+            document.getElementById('userinput-file-label').innerHTML = fileName;
             var ext = getFileExtension(fileName);
             if (accept.indexOf(ext) < 0) {
                 alert('Only files with following extensions are allowed: {{.Accept}}')
                 return;
             }
-            displayClass('input-file-label', 'inline');
+            displayClass('userinput-file-label', 'inline');
             displayId('output-format-block', 'inline');
         }
 		function onOutputFormatChange(){
@@ -383,16 +410,16 @@ const encodeHTML = `
         <h2>phono encode</h1>
         <form id="encode" enctype="multipart/form-data" method="post">
         <div class="file">
-            <input id="input-file" type="file" name="input-file" accept="{{.Accept}}"/>
-            <label id="input-file-label" for="input-file">select file</label>
+            <userinput id="userinput-file" type="file" name="userinput-file" accept="{{.Accept}}"/>
+            <label id="userinput-file-label" for="userinput-file">select file</label>
         </div>
         <div class="outputs">
             <div id="output-format-block" class="option">
                 format
                 <select id="output-format" name="format">
                     <option hidden disabled selected value>select</option>
-                    {{range $key, $value := .OutFormats}}
-                        <option id="{{ $value }}" value="{{ $key }}">{{ $value }}</option>
+                    {{range $value := .OutFormats}}
+                        <option id="{{ $value }}" value="{{ $value }}">{{ $value }}</option>
                     {{end}}
                 </select>
             </div>
@@ -422,17 +449,17 @@ const encodeHTML = `
                 </select>
                 <div class="mp3-bit-rate-mode-options mp3-{{ .MP3.ABR }}-options mp3-{{ .MP3.CBR }}-options">
                     bit rate [{{ .MP3.MinBitRate }}-{{ .MP3.MaxBitRate }}]
-                    <input type="text" class="option" name="mp3-bit-rate" maxlength="3" size="3">
+                    <userinput type="text" class="option" name="mp3-bit-rate" maxlength="3" size="3">
                 </div>
                 <div class="mp3-bit-rate-mode-options mp3-{{ .MP3.VBR }}-options">
                     vbr quality [{{ .MP3.MinVBR }}-{{ .MP3.MaxVBR }}]
-                    <input type="text" class="option" name="mp3-vbr-quality" maxlength="1" size="3">
+                    <userinput type="text" class="option" name="mp3-vbr-quality" maxlength="1" size="3">
                 </div>
                 <div class="mp3-quality">
-                    <input type="checkbox" id="mp3-use-quality" name="mp3-use-quality" value="true">quality
+                    <userinput type="checkbox" id="mp3-use-quality" name="mp3-use-quality" value="true">quality
                     <div id="mp3-quality-value" class="mp3-quality" style="visibility:hidden">
                         [{{ .MP3.MinQuality }}-{{ .MP3.MaxQuality }}]
-                        <input type="text" class="option" name="mp3-quality" maxlength="1" size="3">
+                        <userinput type="text" class="option" name="mp3-quality" maxlength="1" size="3">
                     </div>
                 </div>
             </div>

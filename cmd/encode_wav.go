@@ -5,9 +5,9 @@ import (
 	"log"
 	"os"
 
+	"github.com/pipelined/phono/userinput"
 	"github.com/spf13/cobra"
-
-	"github.com/pipelined/phono/file"
+	"pipelined.dev/audio/fileformat"
 )
 
 var (
@@ -23,8 +23,8 @@ var (
 		Short:                 "Encode audio files to wav format",
 		Args:                  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			// parse user input
-			sink, err := file.WAVSink(encodeWav.bitDepth)
+			// parse user userinput
+			sink, err := userinput.WAV.Sink(encodeWav.bitDepth)
 			if err != nil {
 				log.Print(err)
 				os.Exit(1)
@@ -35,13 +35,13 @@ var (
 				// interrupt signal received, shut down
 				cancelFn()
 			})
-			encode(ctx,
+			encodeCLI(ctx,
 				args,
 				encodeWav.recursive,
 				encodeWav.outPath,
 				encodeWav.bufferSize,
 				sink,
-				file.WAV.DefaultExtension(),
+				fileformat.WAV().DefaultExtension(),
 			)
 			// block until interruption doesn't return
 			<-interrupt
@@ -51,7 +51,7 @@ var (
 
 func init() {
 	encodeCmd.AddCommand(encodeWavCmd)
-	encodeWavCmd.Flags().StringVar(&encodeWav.outPath, "out", "", "output folder, the input folder is used if not specified")
+	encodeWavCmd.Flags().StringVar(&encodeWav.outPath, "out", "", "output folder, the userinput folder is used if not specified")
 	encodeWavCmd.Flags().IntVar(&encodeWav.bufferSize, "buffersize", 1024, "buffer size")
 	encodeWavCmd.Flags().IntVar(&encodeWav.bitDepth, "bitdepth", 24, "bit depth")
 	encodeWavCmd.Flags().BoolVar(&encodeWav.recursive, "recursive", false, "process paths recursive")

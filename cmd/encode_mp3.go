@@ -5,9 +5,9 @@ import (
 	"log"
 	"os"
 
+	"github.com/pipelined/phono/userinput"
 	"github.com/spf13/cobra"
-
-	"github.com/pipelined/phono/file"
+	"pipelined.dev/audio/fileformat"
 )
 
 var (
@@ -30,7 +30,7 @@ var (
 			if cmd.Flags().Changed("quality") {
 				useQuality = true
 			}
-			sink, err := file.MP3Sink(
+			sink, err := userinput.MP3.Sink(
 				encodeMp3.bitRateMode,
 				encodeMp3.bitRate,
 				encodeMp3.channelMode,
@@ -41,13 +41,13 @@ var (
 				log.Print(err)
 				os.Exit(1)
 			}
-			encode(context.Background(),
+			encodeCLI(context.Background(),
 				args,
 				encodeMp3.recursive,
 				encodeMp3.outPath,
 				encodeMp3.bufferSize,
 				sink,
-				file.MP3.DefaultExtension(),
+				fileformat.MP3().DefaultExtension(),
 			)
 		},
 	}
@@ -55,7 +55,7 @@ var (
 
 func init() {
 	encodeCmd.AddCommand(encodeMp3Cmd)
-	encodeMp3Cmd.Flags().StringVar(&encodeMp3.outPath, "out", "", "output folder, the input folder is used if not specified")
+	encodeMp3Cmd.Flags().StringVar(&encodeMp3.outPath, "out", "", "output folder, the userinput folder is used if not specified")
 	encodeMp3Cmd.Flags().IntVar(&encodeMp3.bufferSize, "buffersize", 1024, "buffer size")
 	encodeMp3Cmd.Flags().IntVar(&encodeMp3.channelMode, "channelmode", 2, "channel mode:\n0 - mono\n1 - stereo\n2 - joint stereo")
 	encodeMp3Cmd.Flags().StringVar(&encodeMp3.bitRateMode, "bitratemode", "vbr", "bit rate mode:\ncbr - constant bit rate\nabr - average bit rate\nvbr - variable bit rate")

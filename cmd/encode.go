@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -10,8 +11,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/pipelined/phono/file"
-	"github.com/pipelined/phono/pipes"
+	"github.com/pipelined/phono/encode"
+	"pipelined.dev/audio/fileformat"
+	"pipelined.dev/pipe"
 )
 
 var (
@@ -28,7 +30,7 @@ func init() {
 	rootCmd.AddCommand(encodeCmd)
 }
 
-func encode(ctx context.Context, paths []string, recursive bool, outDir string, bufferSize int, sink file.Sink, ext string) {
+func encodeCLI(ctx context.Context, paths []string, recursive bool, outDir string, bufferSize int, sink func(io.WriteSeeker) pipe.SinkAllocatorFunc, ext string) {
 	if outDir != "" {
 		if _, err := os.Stat(outDir); os.IsNotExist(err) {
 			log.Printf("Out path doesn't exist: %v", err)
@@ -62,8 +64,8 @@ func encode(ctx context.Context, paths []string, recursive bool, outDir string, 
 		}
 
 		// try to parse format
-		format, err := file.ParseFormat(path)
-		if err != nil {
+		format := fileformat.FormatByPath(path)
+		if format == nil {
 			// file is not supported, skip
 			return nil
 		}
@@ -91,7 +93,7 @@ func encode(ctx context.Context, paths []string, recursive bool, outDir string, 
 		// error will be handled in the end of the flow
 		defer out.Close()
 
-		if err = pipes.Encode(ctx, bufferSize, format.Pump(in), sink(out)); err != nil {
+		if err = encode.Run(ctx, bufferSize, format.Source(in), sink(out)); err != nil {
 			return fmt.Errorf("Failed to execute pipe: %v", err)
 		}
 		return out.Close()

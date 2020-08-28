@@ -26,7 +26,7 @@ const FormFileKey = "userinput-file"
 
 type (
 	// Limits for user-provided input files.
-	Limits map[fileformat.Format]int64
+	Limits map[*fileformat.Format]int64
 
 	// EncodeForm provides user interaction via http form.
 	EncodeForm struct {
@@ -52,14 +52,14 @@ func NewEncodeForm(limits Limits) EncodeForm {
 		MaxSizes: limits.maxSizes(),
 		Accept: strings.Join(
 			inputExtensions(
-				fileformat.WAV,
-				fileformat.MP3,
-				fileformat.FLAC,
+				fileformat.WAV(),
+				fileformat.MP3(),
+				fileformat.FLAC(),
 			),
 			", "),
 		OutFormats: outputExtensions(
-			fileformat.WAV,
-			fileformat.MP3,
+			fileformat.WAV(),
+			fileformat.MP3(),
 		),
 		WAV: WAV,
 		MP3: MP3,
@@ -120,7 +120,7 @@ func (f EncodeForm) Parse(r *http.Request) (encode.FormData, error) {
 	}, nil
 }
 
-func inputExtensions(formats ...fileformat.Format) []string {
+func inputExtensions(formats ...*fileformat.Format) []string {
 	result := make([]string, 0, len(formats))
 	for i := range formats {
 		result = append(result, formats[i].Extensions()...)
@@ -129,7 +129,7 @@ func inputExtensions(formats ...fileformat.Format) []string {
 }
 
 // outFormats maps the extensions with values without dots.
-func outputExtensions(formats ...fileformat.Format) []string {
+func outputExtensions(formats ...*fileformat.Format) []string {
 	result := make([]string, 0, len(formats))
 	for i := range formats {
 		result = append(result, formats[i].DefaultExtension())
@@ -148,13 +148,13 @@ func (l Limits) maxSizes() map[string]int64 {
 }
 
 // inputMaxSize of file from http request.
-func (f EncodeForm) inputMaxSize(format fileformat.Format) int64 {
+func (f EncodeForm) inputMaxSize(format *fileformat.Format) int64 {
 	return f.limits[format]
 }
 
 // ParseForm provided via form.
 // This function should return extensions, sinkbuilder
-func parseOutput(formData url.Values) (Sink, fileformat.Format, error) {
+func parseOutput(formData url.Values) (Sink, *fileformat.Format, error) {
 	formatString := strings.ToLower(formData.Get("format"))
 	format := fileformat.FormatByPath(formatString)
 	var (
@@ -162,9 +162,9 @@ func parseOutput(formData url.Values) (Sink, fileformat.Format, error) {
 		err  error
 	)
 	switch format {
-	case fileformat.WAV:
+	case fileformat.WAV():
 		sink, err = parseWAVSink(formData)
-	case fileformat.MP3:
+	case fileformat.MP3():
 		sink, err = parseMP3Sink(formData)
 	default:
 		return nil, nil, fmt.Errorf("Unsupported format: %v", formatString)

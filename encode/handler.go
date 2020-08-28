@@ -30,13 +30,13 @@ type (
 
 	// Input is user-provided input for encoding.
 	Input struct {
-		fileformat.Format
+		*fileformat.Format
 		multipart.File
 	}
 
 	// Output is user-provided output for encoding.
 	Output struct {
-		fileformat.Format
+		*fileformat.Format
 		Sink func(io.WriteSeeker) pipe.SinkAllocatorFunc
 	}
 )

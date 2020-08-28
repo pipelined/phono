@@ -41,7 +41,7 @@ var (
 				encodeWav.outPath,
 				encodeWav.bufferSize,
 				sink,
-				fileformat.WAV.DefaultExtension(),
+				fileformat.WAV().DefaultExtension(),
 			)
 			// block until interruption doesn't return
 			<-interrupt

@@ -47,7 +47,7 @@ var (
 				encodeMp3.outPath,
 				encodeMp3.bufferSize,
 				sink,
-				fileformat.MP3.DefaultExtension(),
+				fileformat.MP3().DefaultExtension(),
 			)
 		},
 	}

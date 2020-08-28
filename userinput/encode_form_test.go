@@ -114,24 +114,24 @@ func TestFormParsing(t *testing.T) {
 		),
 	)
 	t.Run("fail size exceeded",
-		testFail(userinput.NewEncodeForm(userinput.Limits{fileformat.WAV: 10}),
+		testFail(userinput.NewEncodeForm(userinput.Limits{fileformat.WAV(): 10}),
 			newWavRequest(nil),
 		),
 	)
 	t.Run("fail userinput format",
-		testFail(userinput.NewEncodeForm(userinput.Limits{fileformat.WAV: 10}),
+		testFail(userinput.NewEncodeForm(userinput.Limits{fileformat.WAV(): 10}),
 			newRequest("non-existing-format", "", nil),
 		),
 	)
 	t.Run("fail output format",
-		testFail(userinput.NewEncodeForm(userinput.Limits{fileformat.WAV: 10}),
+		testFail(userinput.NewEncodeForm(userinput.Limits{fileformat.WAV(): 10}),
 			newWavRequest(map[string]string{
 				"format": "non-existing-format",
 			}),
 		),
 	)
 	t.Run("fail no file",
-		testFail(userinput.NewEncodeForm(userinput.Limits{fileformat.WAV: 10}),
+		testFail(userinput.NewEncodeForm(userinput.Limits{fileformat.WAV(): 10}),
 			newRequest(".wav", "", nil),
 		),
 	)

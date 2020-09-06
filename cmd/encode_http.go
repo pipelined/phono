@@ -43,23 +43,27 @@ func serve(port int, tempDir string, bufferSize int) {
 		log.Fatal(fmt.Sprintf("Failed to create temp folder: %v", err))
 	}
 
-	server := http.Server{Addr: fmt.Sprintf(":%d", port)}
-	interrupt := run(func() {
+	// setting router rule
+	mux := http.NewServeMux()
+	mux.Handle("/", encode.Handler(userinput.NewEncodeForm(userinput.Limits{}), bufferSize, dir))
+	server := http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: mux,
+	}
+	interrupted := run(func() {
 		// interrupt signal received, shut down
 		if err := server.Shutdown(context.Background()); err != nil {
 			log.Printf("HTTP server Shutdown error: %v", err)
 		}
 	})
 
-	// setting router rule
-	http.Handle("/", encode.Handler(userinput.NewEncodeForm(userinput.Limits{}), bufferSize, dir))
 	log.Printf("phono encode at: http://localhost%s\n", server.Addr)
 	if err := server.ListenAndServe(); err != http.ErrServerClosed {
 		log.Printf("HTTP server ListenAndServe error: %v", err)
 	}
 
 	// block until shutdown executed
-	<-interrupt
+	<-interrupted
 
 	// clean up
 	err = os.RemoveAll(dir)

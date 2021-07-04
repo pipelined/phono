@@ -25,7 +25,7 @@ func Execute() {
 	}
 }
 
-func run(onInterrupt func()) <-chan struct{} {
+func onInterrupt(onInterrupt func()) <-chan struct{} {
 	interrupt := make(chan struct{})
 	sigint := make(chan os.Signal, 1)
 	// interrupt and sigterm signal

@@ -32,10 +32,8 @@ var (
 			}
 			// create channel for interruption and context for cancellation
 			ctx, cancelFn := context.WithCancel(context.Background())
-			interrupt := run(func() {
-				// interrupt signal received, shut down
-				cancelFn()
-			})
+			// interrupt signal received, shut down
+			interrupted := onInterrupt(func() { cancelFn() })
 			encodeCLI(ctx,
 				args,
 				encodeWav.recursive,
@@ -44,8 +42,7 @@ var (
 				sink,
 				fileformat.WAV().DefaultExtension(),
 			)
-			// block until interruption doesn't return
-			<-interrupt
+			<-interrupted
 		},
 	}
 )

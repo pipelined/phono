@@ -42,7 +42,11 @@ var (
 				log.Print(err)
 				os.Exit(1)
 			}
-			encodeCLI(context.Background(),
+			// create channel for interruption and context for cancellation
+			ctx, cancelFn := context.WithCancel(context.Background())
+			// interrupt signal received, shut down
+			interrupted := onInterrupt(func() { cancelFn() })
+			encodeCLI(ctx,
 				args,
 				encodeMp3.recursive,
 				encodeMp3.outPath,
@@ -50,6 +54,7 @@ var (
 				sink,
 				fileformat.MP3().DefaultExtension(),
 			)
+			<-interrupted
 		},
 	}
 )

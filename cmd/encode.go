@@ -95,7 +95,7 @@ func encodeCLI(ctx context.Context, paths []string, recursive bool, outDir strin
 		defer out.Close()
 
 		if err = encode.Run(ctx, bufferSize, format.Source(in), sink(out)); err != nil {
-			return fmt.Errorf("Failed to execute pipe: %v", err)
+			return fmt.Errorf("failed to execute pipe: %v", err)
 		}
 		return out.Close()
 	}

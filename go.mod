@@ -3,14 +3,15 @@ module pipelined.dev/phono
 go 1.12
 
 require (
-	github.com/hajimehoshi/go-mp3 v0.3.1 // indirect
-	github.com/spf13/cobra v1.0.0
-	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/stretchr/testify v1.4.0
-	golang.org/x/net v0.0.0-20190522155817-f3200d17e092
+	github.com/hajimehoshi/go-mp3 v0.3.2 // indirect
+	github.com/mewkiz/pkg v0.0.0-20210604082325-6217eed0deab // indirect
+	github.com/spf13/cobra v1.2.1
+	github.com/stretchr/testify v1.7.0
+	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
 	pipelined.dev/audio/fileformat v0.3.0
-	pipelined.dev/audio/mp3 v0.5.0
-	pipelined.dev/audio/wav v0.5.0
-	pipelined.dev/pipe v0.8.4
-	pipelined.dev/signal v0.8.0
+	pipelined.dev/audio/flac v0.4.1 // indirect
+	pipelined.dev/audio/mp3 v0.6.1
+	pipelined.dev/audio/wav v0.6.1
+	pipelined.dev/pipe v0.11.0
+	pipelined.dev/signal v0.10.0
 )

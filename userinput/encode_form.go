@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	errInputFormat  = errors.New("unsupported userinput format")
+	errInputFormat  = errors.New("unsupported input format")
 	errOutputFormat = errors.New("unsupported output format")
 )
 

@@ -7,7 +7,7 @@ require (
 	github.com/mewkiz/pkg v0.0.0-20210604082325-6217eed0deab // indirect
 	github.com/spf13/cobra v1.2.1
 	github.com/stretchr/testify v1.7.0
-	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
+	golang.org/x/net v0.7.0
 	pipelined.dev/audio/fileformat v0.3.0
 	pipelined.dev/audio/flac v0.4.1 // indirect
 	pipelined.dev/audio/mp3 v0.6.1
